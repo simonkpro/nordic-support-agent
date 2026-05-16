@@ -1,0 +1,24 @@
+{
+  "id": "refund-002-no-refund-yet",
+  "intent": "refund_status",
+  "description": "Customer claims they returned an item and asks where the refund is — but no refund has been registered yet (the merchant hasn't received/processed the return). Agent must NOT confirm a refund that isn't in the system.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "anna@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Jag returnerade tröjan från #1001 förra veckan men ser ingen återbetalning. anna@example.se"
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_refund_info"
+    ],
+    "judgeRubric": "Response is in Swedish. States plainly that no refund has been registered for this order yet. Does NOT promise the refund is on the way. Suggests the next step: confirm the return was sent / received at the warehouse, or escalate if the customer has proof of return. May offer to hand off to a human if the customer has tracking proof. Does NOT invent a settlement date for a refund that doesn't exist."
+  }
+}

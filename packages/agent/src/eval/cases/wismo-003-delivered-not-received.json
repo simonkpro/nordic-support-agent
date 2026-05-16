@@ -1,0 +1,35 @@
+{
+  "id": "wismo-003-delivered-not-received",
+  "intent": "delivered_but_not_received",
+  "description": "Carrier shows order as delivered (picked up at ombud) but customer says they didn't get it. This is a sensitive case — agent should escalate to a human, not promise a resolution.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "anna@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Mitt paket #1001 (anna@example.se) är markerat som upphämtat men jag har INTE hämtat det. Vad gör jag nu?"
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_tracking",
+      "create_handoff_ticket"
+    ],
+    "mustMentionAny": [
+      "kontakta",
+      "agent",
+      "support",
+      "kollega",
+      "utred",
+      "anmäl",
+      "handläggare"
+    ],
+    "judgeRubric": "Response is in Swedish. Acknowledges the discrepancy between the carrier's 'delivered' status and the customer's report. Does NOT take the customer's side or the carrier's side definitively — both could be true. Escalates to a human agent (the agent should have called create_handoff_ticket). Mentions that this needs further investigation. Tone is empathetic but factual. Should NOT promise a refund or replacement on its own authority.",
+    "judgeThreshold": 3
+  }
+}

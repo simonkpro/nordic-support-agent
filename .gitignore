@@ -1,0 +1,15 @@
+node_modules
+dist
+.next
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.vercel
+coverage
+.vite
+.cache
+.react-router
+build/
+prisma/dev.sqlite*

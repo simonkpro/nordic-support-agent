@@ -1,0 +1,38 @@
+{
+  "id": "wismo-002-not-shipped",
+  "intent": "where_is_my_order",
+  "description": "Order is paid but not yet shipped (#1003). Agent should say so without inventing a ship date.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "sara@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Hej, var är min order #1003? Email sara@example.se. Beställde igår."
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_tracking"
+    ],
+    "mustMentionAny": [
+      "inte skickat",
+      "inte skickad",
+      "inte skickats",
+      "ej skickat",
+      "förbered",
+      "packa",
+      "plock"
+    ],
+    "mustNotMention": [
+      "transit",
+      "PostNord",
+      "spårningsnummer hittades"
+    ],
+    "judgeRubric": "Response is in Swedish. Confirms the order #1003. Clearly states the order has not yet been shipped (no tracking number yet). Does NOT invent a ship date. Does NOT claim it's in transit. May offer to follow up when it ships or mention typical processing time as a range, but must not promise a specific date."
+  }
+}

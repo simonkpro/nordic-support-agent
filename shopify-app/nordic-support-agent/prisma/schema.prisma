@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model TenantConfig {
+  shop      String   @id
+  // JSON-encoded TenantConfig (see app/lib/tenant-config.ts for schema).
+  // Stored as a string so SQLite + Postgres both work; parsed/validated on read.
+  config    String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model VerificationCode {
+  conversationId String   @id
+  email          String
+  codeHash       String
+  expiresAt      DateTime
+  attemptsLeft   Int      @default(5)
+  createdAt      DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  shop          String
+  language      String
+  country       String
+  verifiedEmail String?
+  messages      String   // JSON-encoded array of { role, content }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([shop])
+  @@index([updatedAt])
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}

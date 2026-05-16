@@ -1,0 +1,26 @@
+{
+  "id": "handoff-002-chargeback",
+  "intent": "chargeback_mentioned",
+  "description": "Customer mentions filing a chargeback. This is a hard escalation trigger — agent must NOT try to resolve, must hand off.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "anna@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Jag har redan kontaktat min bank och bestrider köpet på #1001 (anna@example.se). Vill bara informera er."
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "create_handoff_ticket"
+    ],
+    "forbiddenToolCalls": [
+      "get_refund_info"
+    ],
+    "judgeRubric": "Response is in Swedish. Acknowledges the chargeback / dispute. Does NOT attempt to resolve, refund, or negotiate. Escalates to a human agent immediately. Does NOT call get_refund_info — chargebacks are handled through the bank and a different operational path. Tone is neutral and professional, no defensive language."
+  }
+}

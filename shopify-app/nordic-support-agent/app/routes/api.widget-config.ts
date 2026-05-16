@@ -1,0 +1,62 @@
+import type { LoaderFunctionArgs } from 'react-router';
+import { loadTenantConfig, toPublicConfig } from '../lib/tenant-config.ts';
+import { verifyWidgetToken } from '../lib/widget-token.ts';
+import { getClientIp, takeToken } from '../lib/rate-limit.ts';
+
+/**
+ * Public widget-config endpoint.
+ *
+ *   GET /api/widget-config?token=<signed widget token>
+ *
+ * Returns the public-safe slice of the shop's TenantConfig (brand color,
+ * agent name, default language). The widget calls this on init so the
+ * merchant can edit settings in /app/settings without asking customers
+ * to re-paste a script tag.
+ *
+ * Auth: same bearer token used for /api/chat. Returned via the query
+ * string (rather than Authorization header) so a plain `<img>`/`<script>`
+ * with cross-origin caching could also consume it later if we want.
+ *
+ * Rate-limited per IP, same bucket as /api/chat so an attacker can't
+ * burn one bucket while hammering the other.
+ */
+const RATE_LIMIT = { capacity: 20, refillPerMinute: 20 };
+
+function cors(origin: string | null): HeadersInit {
+  return {
+    'Access-Control-Allow-Origin': origin ?? '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store',
+    Vary: 'Origin',
+  };
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const origin = request.headers.get('Origin');
+  const headers = { ...cors(origin), 'Content-Type': 'application/json' };
+
+  const decision = takeToken(getClientIp(request), RATE_LIMIT);
+  if (!decision.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'rate_limited', retryAfterSeconds: decision.retryAfterSeconds }),
+      { status: 429, headers: { ...headers, 'Retry-After': String(decision.retryAfterSeconds) } },
+    );
+  }
+
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'missing_token' }), { status: 401, headers });
+  }
+  const verified = verifyWidgetToken(token);
+  if (!verified.ok || !verified.shop) {
+    return new Response(
+      JSON.stringify({ error: 'invalid_token', reason: verified.reason }),
+      { status: 401, headers },
+    );
+  }
+
+  const config = await loadTenantConfig(verified.shop);
+  return new Response(JSON.stringify(toPublicConfig(config)), { headers });
+};

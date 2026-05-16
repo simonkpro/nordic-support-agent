@@ -1,0 +1,38 @@
+{
+  "id": "wismo-001",
+  "intent": "where_is_my_order",
+  "description": "Customer asks where their in-transit order is. Agent should verify, fetch tracking, and report the latest carrier status with a timestamp.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "erik@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Hej! Jag undrar var min order #1002 är. Jag beställde med email erik@example.se. Den skulle ha kommit nu."
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_tracking"
+    ],
+    "forbiddenToolCalls": [
+      "get_refund_info"
+    ],
+    "mustMentionAny": [
+      "transit",
+      "väg",
+      "transport",
+      "sorteringsterminal",
+      "göteborg"
+    ],
+    "mustNotMention": [
+      "levererad till dig",
+      "anlände idag"
+    ],
+    "judgeRubric": "Response is in Swedish. Confirms the order (#1002, Göteborg). States that the package is in transit at a sorting terminal. Cites the timestamp of the latest carrier event (around 2026-05-14 morning) or notes that the carrier last updated recently. Does NOT invent a delivery date — the estimated delivery is 2026-05-16 which may be mentioned as a range/estimate but not as a guarantee. Tone is concise and helpful."
+  }
+}

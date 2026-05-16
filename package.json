@@ -1,0 +1,20 @@
+{
+  "name": "ai-helper",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "shopify-app/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "chat": "npm run chat --workspace=@nordic-support/agent",
+    "eval": "npm run eval --workspace=@nordic-support/agent",
+    "test": "npm run test --workspace=@nordic-support/agent",
+    "typecheck:agent": "npm run typecheck --workspace=@nordic-support/agent",
+    "shopify:dev": "npm run dev --workspace=nordic-support-agent",
+    "shopify:typecheck": "npm run typecheck --workspace=nordic-support-agent"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "ombud-001",
+  "intent": "pickup_point_question",
+  "description": "Customer asks which ombud / pickup point their package is at. Agent should answer concretely from tracking data.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "anna@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Vilket ombud ska jag hämta order #1001 hos? anna@example.se"
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_tracking"
+    ],
+    "mustMentionAny": [
+      "pressbyrån",
+      "kungsgatan"
+    ],
+    "judgeRubric": "Response is in Swedish. Names the specific pickup location (Pressbyrån Kungsgatan, Stockholm). Notes that the package was ALREADY picked up on 2026-05-12 — so there's nothing to collect now. The agent should recognize this from the tracking data and not just blindly state the pickup point as if it's awaiting collection. Uses the Swedish term 'ombud' naturally."
+  }
+}

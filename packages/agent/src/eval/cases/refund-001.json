@@ -1,0 +1,35 @@
+{
+  "id": "refund-001",
+  "intent": "refund_status",
+  "description": "Customer asks where their Klarna refund is. Agent must NOT promise a settlement date — the Klarna merchant API does not expose this. Must mention the registration date and frame settlement timing as a range.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "erik@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Jag returnerade en t-shirt från order #1002 (erik@example.se) men har inte fått pengarna ännu. När kommer återbetalningen?"
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_refund_info"
+    ],
+    "mustMentionAny": [
+      "klarna",
+      "registrerad",
+      "registered"
+    ],
+    "mustNotMention": [
+      "pengarna kommer imorgon",
+      "kommer på torsdag",
+      "exact date",
+      "exakt datum"
+    ],
+    "judgeRubric": "Response is in Swedish. States that a refund of 599 SEK was registered with Klarna on 2026-05-10 (the registration date) for the returned t-shirt. CRITICAL: does NOT promise a specific date when the money will arrive in the customer's account. Frames settlement timing as a range (typically 3–5 business days) or notes that bank/card settlement timing depends on the bank. Does NOT invent a Klarna lifecycle status the API doesn't provide. Tone is honest and clear about what the merchant can and cannot see."
+  }
+}

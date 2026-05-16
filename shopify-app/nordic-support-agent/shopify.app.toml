@@ -1,0 +1,31 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "2e6d8d16645665945d9a30d244da5335"
+name = "nordic-support-agent"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# Read-only scopes for the AI support agent MVP.
+# read_orders gives access to orders, line items, transactions, fulfillments, refunds.
+# read_customers exposes the email-on-file used for verification.
+# read_fulfillments is included explicitly for clarity even though read_orders covers it.
+scopes = "read_orders,read_customers,read_fulfillments"
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

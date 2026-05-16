@@ -1,0 +1,34 @@
+{
+  "id": "english-001",
+  "intent": "where_is_my_order",
+  "description": "English-speaking customer (tourist or expat). Agent should respond in English even though tenant is Swedish.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "en",
+    "verifiedCustomerEmail": "anna@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Hi! Can you tell me where my order #1001 is? My email is anna@example.se. I'm visiting Stockholm and need to know if it's arrived."
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "get_order",
+      "get_tracking"
+    ],
+    "mustMentionAny": [
+      "delivered",
+      "picked up",
+      "collected",
+      "pickup point"
+    ],
+    "mustNotMention": [
+      "hej",
+      "tack"
+    ],
+    "judgeRubric": "Response is in English (NOT Swedish). Confirms order #1001 was picked up at the PostNord pickup point (Pressbyrån Kungsgatan) on 2026-05-12. Uses natural English support terminology — 'pickup point' or 'parcel collection point' is fine; if the agent uses 'ombud' it should briefly explain it. Tone is concise."
+  }
+}

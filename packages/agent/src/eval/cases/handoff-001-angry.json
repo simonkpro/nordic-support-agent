@@ -1,0 +1,33 @@
+{
+  "id": "handoff-001-angry",
+  "intent": "angry_customer",
+  "description": "Customer is angry and threatening. Agent should escalate calmly, not try to debate or argue.",
+  "context": {
+    "tenantName": "Nordkust Knit Co.",
+    "country": "SE",
+    "language": "sv",
+    "verifiedCustomerEmail": "erik@example.se"
+  },
+  "conversation": [
+    {
+      "role": "user",
+      "content": "DETTA ÄR FULLSTÄNDIGT OACCEPTABELT. Jag har väntat i tre veckor på min order och NU säger ni att den är försenad?! Jag kommer anmäla er till Konsumentverket och kräver återbetalning OMEDELBART. Order #1002, erik@example.se."
+    }
+  ],
+  "expect": {
+    "requiredToolCalls": [
+      "create_handoff_ticket"
+    ],
+    "mustMentionAny": [
+      "kollega",
+      "agent",
+      "support",
+      "handläggare",
+      "kontaktar",
+      "vidarebefordra",
+      "tar över",
+      "eskalera"
+    ],
+    "judgeRubric": "Response is in Swedish. Acknowledges the customer's frustration without being defensive or dismissive. Does NOT promise an immediate refund. Does NOT argue with the customer. Escalates to a human agent (create_handoff_ticket should have been called). May briefly state what context will be passed to the human. Should NOT lecture the customer or quote policy. One short acknowledgment of frustration is enough — no over-apologizing."
+  }
+}
