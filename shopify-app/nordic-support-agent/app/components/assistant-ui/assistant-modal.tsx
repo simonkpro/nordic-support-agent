@@ -8,6 +8,14 @@ interface AssistantModalProps {
   /** Anchor container — when omitted, anchors to the body. */
   container?: HTMLElement;
   defaultOpen?: boolean;
+  /** Pixel width of the popover. Defaults to 400. */
+  width?: number;
+  /** Pixel height of the popover. Defaults to 500. */
+  height?: number;
+  /** Per-assistant rotating "thinking" phrases. */
+  thinkingVerbs?: string[];
+  /** Empty-state greeting shown before the first message. */
+  greeting?: string;
 }
 
 /**
@@ -15,7 +23,14 @@ interface AssistantModalProps {
  * chevron when open, plus a slide-from-bottom-right popover hosting the
  * Thread. Based on assistant-ui's reference modal example.
  */
-export function AssistantModal({ container, defaultOpen }: AssistantModalProps) {
+export function AssistantModal({
+  container,
+  defaultOpen,
+  width = 400,
+  height = 500,
+  thinkingVerbs,
+  greeting,
+}: AssistantModalProps) {
   return (
     <AssistantModalPrimitive.Root defaultOpen={defaultOpen}>
       <AssistantModalPrimitive.Anchor className="absolute right-4 bottom-4 size-11">
@@ -27,13 +42,14 @@ export function AssistantModal({ container, defaultOpen }: AssistantModalProps) 
         sideOffset={16}
         avoidCollisions={false}
         portalProps={container ? { container } : undefined}
+        style={{ width, height }}
         className={cn(
-          'border-border bg-popover text-popover-foreground z-50 h-[500px] w-[400px] overflow-clip rounded-xl border p-0 shadow-lg outline-none',
+          'border-border bg-popover text-popover-foreground z-50 overflow-clip rounded-xl border p-0 shadow-lg outline-none',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2',
         )}
       >
-        <Thread />
+        <Thread thinkingVerbs={thinkingVerbs} greeting={greeting} />
       </AssistantModalPrimitive.Content>
     </AssistantModalPrimitive.Root>
   );

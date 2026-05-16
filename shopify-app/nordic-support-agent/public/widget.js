@@ -161,11 +161,40 @@
     var COUNTRY = inlineConfig.country || (remote && remote.country) || 'SE';
 
     var strings = Object.assign({}, STRING_DEFAULTS[LANGUAGE]);
+    // Per-assistant error phrases from the server take precedence over
+    // locale defaults — empty strings mean "use the default".
+    var remoteErrors = (remote && remote.agent && remote.agent.errorPhrases) || {};
+    var ERR_MAP = {
+      generic: 'errGeneric',
+      network: 'errNetwork',
+      rateLimit: 'errRateLimit',
+      tooLong: 'errTooLong',
+      tooManyTurns: 'errTooManyTurns',
+      unconfigured: 'errUnconfigured',
+    };
+    for (var ek in ERR_MAP) {
+      if (typeof remoteErrors[ek] === 'string' && remoteErrors[ek].trim()) {
+        strings[ERR_MAP[ek]] = remoteErrors[ek];
+      }
+    }
+    // Inline NORDIC_SUPPORT.text still wins as the per-page escape hatch.
     if (inlineConfig.text && typeof inlineConfig.text === 'object') {
       for (var k in inlineConfig.text) {
         if (typeof inlineConfig.text[k] === 'string') strings[k] = inlineConfig.text[k];
       }
     }
+
+    // Rotating "thinking" phrases. Server config wins; static
+    // strings.thinking is the fallback when no per-assistant verbs are set.
+    var THINKING_VERBS =
+      (remote && remote.agent && Array.isArray(remote.agent.thinkingVerbs)
+        ? remote.agent.thinkingVerbs.filter(function (v) {
+            return typeof v === 'string' && v.trim();
+          })
+        : []);
+    if (THINKING_VERBS.length === 0) THINKING_VERBS = [strings.thinking.replace(/…$/, '')];
+    var thinkingIndex = Math.floor(Math.random() * THINKING_VERBS.length);
+    var thinkingTimer = null;
 
     function t(key, vars) {
       var s = strings[key] || '';
@@ -314,7 +343,7 @@
       if (sending) {
         var thinking = document.createElement('div');
         thinking.className = 'ns-thinking';
-        thinking.textContent = t('thinking');
+        thinking.textContent = THINKING_VERBS[thinkingIndex % THINKING_VERBS.length] + '…';
         messagesEl.appendChild(thinking);
       }
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -334,11 +363,29 @@
       modalBackdropEl.classList.add('ns-hidden');
     }
 
+    function startThinkingRotation() {
+      if (thinkingTimer || THINKING_VERBS.length <= 1) return;
+      thinkingTimer = setInterval(function () {
+        // Pick a different index than the current one.
+        var next = Math.floor(Math.random() * THINKING_VERBS.length);
+        if (next === thinkingIndex) next = (next + 1) % THINKING_VERBS.length;
+        thinkingIndex = next;
+        if (sending) render();
+      }, 2500);
+    }
+    function stopThinkingRotation() {
+      if (thinkingTimer) {
+        clearInterval(thinkingTimer);
+        thinkingTimer = null;
+      }
+    }
+
     function send(message) {
       if (sending) return;
       sending = true;
       messages.push({ role: 'user', content: message });
       render();
+      startThinkingRotation();
 
       var body = { message: message };
       if (sessionId) {
@@ -362,6 +409,7 @@
         })
         .then(function (result) {
           sending = false;
+          stopThinkingRotation();
           if (
             result.status === 200 &&
             result.data &&
@@ -395,6 +443,7 @@
         })
         .catch(function () {
           sending = false;
+          stopThinkingRotation();
           if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
             messages.pop();
           }

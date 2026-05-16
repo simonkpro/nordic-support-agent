@@ -21,6 +21,7 @@ export default function App() {
       <s-app-nav>
         <s-link href="/app">Home</s-link>
         <s-link href="/app/settings">Settings</s-link>
+        <s-link href="/app/knowledge">Knowledge</s-link>
         <s-link href="/app/widget">Storefront widget</s-link>
         {/* @ts-expect-error s-app-nav closing tag */}
       </s-app-nav>

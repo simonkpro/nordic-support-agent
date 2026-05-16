@@ -4,7 +4,7 @@ import { useLoaderData } from 'react-router';
 import { boundary } from '@shopify/shopify-app-react-router/server';
 import { authenticate } from '../shopify.server';
 import { createConversation } from '../lib/conversations.ts';
-import { loadTenantConfig } from '../lib/tenant-config.ts';
+import { loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
 import { AssistantModal } from '../components/assistant-ui/assistant-modal';
 import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
@@ -19,19 +19,21 @@ interface LoaderData {
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   const { session } = await authenticate.admin(request);
-  const tenantConfig = await loadTenantConfig(session.shop);
+  const assistant = await loadOrCreateDefaultAssistant(session.shop);
   const convo = await createConversation(session.shop, {
-    language: tenantConfig.language,
-    country: tenantConfig.country,
+    language: assistant.config.language,
+    country: assistant.config.country,
     verifiedEmail: null,
   });
-  const widgetToken = signWidgetToken(session.shop);
+  // Sign a token bound to the default assistant — the embedded admin test
+  // panel always exercises the default.
+  const widgetToken = signWidgetToken(session.shop, { assistantId: assistant.id });
   const appUrl = process.env.SHOPIFY_APP_URL || '';
   return {
     apiUrl: appUrl ? `${appUrl}/api/chat/stream` : '/api/chat/stream',
     widgetToken,
     conversationId: convo.id,
-    agentName: tenantConfig.agent.name,
+    agentName: assistant.config.agent.name,
     shop: session.shop,
   };
 };

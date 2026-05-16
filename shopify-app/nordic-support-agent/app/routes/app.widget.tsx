@@ -1,76 +1,135 @@
+import { useState } from 'react';
 import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
 import { boundary } from '@shopify/shopify-app-react-router/server';
 import { authenticate } from '../shopify.server';
+import { listAssistants } from '../lib/assistants.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
+
+interface AssistantOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  token: string;
+}
 
 interface LoaderData {
   shop: string;
-  token: string;
   appUrl: string;
+  assistants: AssistantOption[];
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   const { session } = await authenticate.admin(request);
-  const token = signWidgetToken(session.shop);
+  const all = await listAssistants(session.shop);
+  // If the shop has zero assistants the embedded chat panel will lazily
+  // create a default — but the widget page expects at least one. We don't
+  // create here (loaders should stay pure-ish); render the empty state.
   return {
     shop: session.shop,
-    token,
     appUrl: process.env.SHOPIFY_APP_URL || '',
+    assistants: all.map((a) => ({
+      id: a.id,
+      name: a.name,
+      isDefault: a.isDefault,
+      // Each assistant gets its own token bound to its id. Customers
+      // dropping the snippet on a given page reach this exact assistant.
+      token: signWidgetToken(session.shop, { assistantId: a.id }),
+    })),
   };
 };
 
 export default function Widget() {
-  const { shop, token, appUrl } = useLoaderData<typeof loader>();
-
+  const { shop, appUrl, assistants } = useLoaderData<typeof loader>();
   const apiUrl = appUrl ? `${appUrl}/api/chat` : '/api/chat';
-
   const widgetUrl = appUrl ? `${appUrl}/widget.js` : '/widget.js';
+
+  const initial = assistants.find((a) => a.isDefault) ?? assistants[0];
+  const [selectedId, setSelectedId] = useState<string | undefined>(initial?.id);
+  const selected = assistants.find((a) => a.id === selectedId);
+
+  if (!selected) {
+    return (
+      <s-page heading="Storefront widget integration">
+        <s-section heading="No assistants yet">
+          <s-paragraph>
+            Create an assistant in <s-link href="/app/settings">Settings</s-link> first,
+            then come back here to copy the snippet.
+          </s-paragraph>
+        </s-section>
+      </s-page>
+    );
+  }
+
   const snippet = `<!-- Nordic Support Agent — paste in theme.liquid before </body> -->
 <script>
   window.NORDIC_SUPPORT = {
-    token: ${JSON.stringify(token)},
+    token: ${JSON.stringify(selected.token)},
     apiUrl: ${JSON.stringify(apiUrl)}
   };
 </script>
 <script src=${JSON.stringify(widgetUrl)} async defer></script>
 
 <!--
-  Brand color, agent name, default language, and tone are configured in
-  the app's Settings page — no theme.liquid changes needed for those.
-
-  Optional inline overrides (e.g. for a campaign landing page that needs
-  different copy than the rest of the store):
-
-  window.NORDIC_SUPPORT = {
-    token: ${JSON.stringify(token).slice(0, 20)}...,
-    apiUrl: ${JSON.stringify(apiUrl)},
-    brand: { name: "Black Friday Help", color: "#000000" },
-    text:  { placeholder: "Black Friday questions?" }
-  };
+  This token is bound to assistant "${selected.name}"${selected.isDefault ? ' (default)' : ''}.
+  To embed a different assistant on a different page, pick another one
+  above and paste its snippet there instead. Brand color, agent name,
+  language, and tone are configured per-assistant in Settings — no
+  theme.liquid changes needed when you tweak them.
 -->`;
 
   const curlExample = `curl -X POST ${apiUrl} \\
-  -H "Authorization: Bearer ${token}" \\
+  -H "Authorization: Bearer ${selected.token}" \\
   -H "Content-Type: application/json" \\
   -d '{"message":"Var är min order #1001? anna@example.se"}'`;
 
   return (
     <s-page heading="Storefront widget integration">
-      <s-section heading="Your shop's widget token">
+      <s-section heading="Pick which assistant the snippet targets">
         <s-paragraph>
-          This token authenticates the widget on{' '}
-          <strong>{shop}</strong>'s storefront to the chat API. Treat it like a public API
-          key — it identifies your shop but cannot be used to access merchant admin data.
+          Each snippet binds to a specific assistant — customers who load that page
+          reach exactly that one. To run different personas on different pages, copy
+          a different snippet for each.
         </s-paragraph>
+        <s-stack direction="inline" gap="base">
+          <select
+            value={selected.id}
+            onChange={(e) => setSelectedId(e.target.value)}
+            style={{
+              padding: '8px 10px',
+              fontSize: 14,
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              minWidth: 220,
+            }}
+          >
+            {assistants.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.isDefault ? ' (default)' : ''}
+              </option>
+            ))}
+          </select>
+        </s-stack>
+      </s-section>
+
+      <s-section heading={`Widget token for "${selected.name}"`}>
         <s-paragraph>
-          The token is signed with the server's secret. Anyone with it can chat as your
-          shop. If you suspect it's been leaked, rotate <code>WIDGET_TOKEN_SECRET</code> in
-          your Vercel env — that invalidates every outstanding token.
+          Treat this like a public API key — it identifies the shop and assistant,
+          but cannot access merchant admin data. To rotate every outstanding token
+          across the shop, change <code>WIDGET_TOKEN_SECRET</code> in env.
         </s-paragraph>
         <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-          <pre style={{ margin: 0, fontSize: '12px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            {token}
+          <pre
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+            }}
+          >
+            {selected.token}
           </pre>
         </s-box>
       </s-section>
@@ -87,7 +146,7 @@ export default function Widget() {
 
       <s-section heading="Quick test from the command line">
         <s-paragraph>
-          Confirm the endpoint accepts your token:
+          Confirm the endpoint accepts your token and routes to the right assistant:
         </s-paragraph>
         <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
           <pre style={{ margin: 0, fontSize: '12px', overflow: 'auto' }}>{curlExample}</pre>
@@ -96,10 +155,12 @@ export default function Widget() {
 
       <s-section slot="aside" heading="What this protects">
         <s-paragraph>
-          Without this token, any client could call <code>/api/chat</code> claiming any
-          shop. With it, only callers who hold a server-signed token for THIS shop can chat,
-          and the server scopes the conversation by the verified shop — body input is ignored.
+          Without a token, any client could call <code>/api/chat</code> claiming any
+          shop. With it, only callers holding a server-signed token for THIS shop +
+          assistant can chat. The server treats the token's assistant claim as
+          authoritative — body parameters can't override it.
         </s-paragraph>
+        <s-paragraph>Shop: <s-text>{shop}</s-text></s-paragraph>
       </s-section>
     </s-page>
   );

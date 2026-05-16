@@ -8,38 +8,62 @@ import { useFetcher, useLoaderData } from 'react-router';
 import { boundary } from '@shopify/shopify-app-react-router/server';
 import { authenticate } from '../shopify.server';
 import {
-  loadTenantConfig,
-  saveTenantConfig,
-  TenantConfigSchema,
-  type TenantConfig,
-} from '../lib/tenant-config.ts';
+  loadOrCreateDefaultAssistant,
+  updateAssistant,
+  type AssistantConfig,
+  type FewShotExample,
+} from '../lib/assistants.ts';
+
+const MAX_FEW_SHOT = 5;
 
 interface ActionResponse {
   ok: boolean;
-  saved?: TenantConfig;
+  saved?: AssistantConfig;
   error?: string;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const config = await loadTenantConfig(session.shop);
-  return { config, shop: session.shop };
+  // For now, the embedded admin Settings page edits the default assistant.
+  // Multi-assistant management lives in /preview/chat for the pilot.
+  const assistant = await loadOrCreateDefaultAssistant(session.shop);
+  return {
+    config: assistant.config,
+    assistantId: assistant.id,
+    assistantName: assistant.name,
+    shop: session.shop,
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs): Promise<ActionResponse> => {
   const { session } = await authenticate.admin(request);
+  const assistant = await loadOrCreateDefaultAssistant(session.shop);
   const formData = await request.formData();
 
+  const rawExamples = formData.get('agent.fewShotExamples');
+  let fewShotExamples: unknown = [];
+  if (typeof rawExamples === 'string' && rawExamples.length > 0) {
+    try {
+      fewShotExamples = JSON.parse(rawExamples);
+    } catch {
+      return { ok: false, error: 'invalid few-shot examples JSON' };
+    }
+  }
+
   const candidate: unknown = {
+    business: {
+      description: formData.get('businessDescription') ?? '',
+    },
     agent: {
       name: formData.get('agent.name') ?? undefined,
       tone: formData.get('agent.tone') ?? undefined,
       greeting: formData.get('agent.greeting') ?? '',
       signature: formData.get('agent.signature') ?? '',
       customRules: formData.get('agent.customRules') ?? '',
+      fewShotExamples,
     },
-    brand: {
-      color: formData.get('brand.color') ?? undefined,
+    widget: {
+      primaryColor: formData.get('brand.color') ?? undefined,
       accentColor: formData.get('brand.accentColor') ?? undefined,
     },
     language: formData.get('language') ?? undefined,
@@ -47,8 +71,8 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
   };
 
   try {
-    const saved = await saveTenantConfig(session.shop, candidate);
-    return { ok: true, saved };
+    const updated = await updateAssistant(assistant.id, { config: candidate });
+    return { ok: true, saved: updated.config };
   } catch (err) {
     const detail =
       err && typeof err === 'object' && 'issues' in err
@@ -63,15 +87,21 @@ export default function SettingsPage() {
   const fetcher = useFetcher<typeof action>();
 
   // Local form state — submit posts the whole form, so we just track inputs.
+  const [businessDescription, setBusinessDescription] = useState(
+    initialConfig.business.description,
+  );
   const [agentName, setAgentName] = useState(initialConfig.agent.name);
-  const [agentTone, setAgentTone] = useState<TenantConfig['agent']['tone']>(
+  const [agentTone, setAgentTone] = useState<AssistantConfig['agent']['tone']>(
     initialConfig.agent.tone,
   );
   const [agentGreeting, setAgentGreeting] = useState(initialConfig.agent.greeting);
   const [agentSignature, setAgentSignature] = useState(initialConfig.agent.signature);
   const [agentRules, setAgentRules] = useState(initialConfig.agent.customRules);
-  const [brandColor, setBrandColor] = useState(initialConfig.brand.color);
-  const [accentColor, setAccentColor] = useState(initialConfig.brand.accentColor);
+  const [examples, setExamples] = useState<FewShotExample[]>(
+    initialConfig.agent.fewShotExamples,
+  );
+  const [brandColor, setBrandColor] = useState(initialConfig.widget.primaryColor);
+  const [accentColor, setAccentColor] = useState(initialConfig.widget.accentColor);
   const [language, setLanguage] = useState(initialConfig.language);
   const [country, setCountry] = useState(initialConfig.country);
 
@@ -80,11 +110,17 @@ export default function SettingsPage() {
 
   const submit = () => {
     const form = new FormData();
+    form.set('businessDescription', businessDescription);
     form.set('agent.name', agentName);
     form.set('agent.tone', agentTone);
     form.set('agent.greeting', agentGreeting);
     form.set('agent.signature', agentSignature);
     form.set('agent.customRules', agentRules);
+    // Filter out empty pairs before submitting so the schema doesn't reject them.
+    const cleanExamples = examples.filter(
+      (e) => e.user.trim() && e.assistant.trim(),
+    );
+    form.set('agent.fewShotExamples', JSON.stringify(cleanExamples));
     form.set('brand.color', brandColor);
     form.set('brand.accentColor', accentColor);
     form.set('language', language);
@@ -102,6 +138,17 @@ export default function SettingsPage() {
         </s-paragraph>
 
         <s-stack direction="block" gap="base">
+          <FormRow label="Business description (what the agent should know about you)">
+            <textarea
+              value={businessDescription}
+              maxLength={1500}
+              rows={5}
+              onChange={(e) => setBusinessDescription(e.target.value)}
+              placeholder="Founded year, what you sell, what makes you different, what customers should know. The agent uses this for general grounding — products, brand story, return guarantee, anything that isn't in a specific document."
+              style={{ ...inputStyle, fontFamily: 'inherit' }}
+            />
+          </FormRow>
+
           <FormRow label="Agent name">
             <input
               type="text"
@@ -115,7 +162,7 @@ export default function SettingsPage() {
           <FormRow label="Tone">
             <select
               value={agentTone}
-              onChange={(e) => setAgentTone(e.target.value as TenantConfig['agent']['tone'])}
+              onChange={(e) => setAgentTone(e.target.value as AssistantConfig['agent']['tone'])}
               style={inputStyle}
             >
               <option value="friendly">Friendly (default)</option>
@@ -159,6 +206,76 @@ export default function SettingsPage() {
         </s-stack>
       </s-section>
 
+      <s-section heading="Few-shot examples">
+        <s-paragraph>
+          Show the agent up to {MAX_FEW_SHOT} reference replies. The agent will match the
+          tone, length, and structure of your examples — without copying them verbatim.
+          Examples don't override grounding or safety rules.
+        </s-paragraph>
+
+        <s-stack direction="block" gap="base">
+          {examples.map((ex, i) => (
+            <s-box
+              key={i}
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              background="subdued"
+            >
+              <s-stack direction="block" gap="base">
+                <FormRow label={`Example ${i + 1} — customer message`}>
+                  <input
+                    type="text"
+                    value={ex.user}
+                    maxLength={500}
+                    onChange={(e) =>
+                      setExamples((arr) =>
+                        arr.map((x, j) => (j === i ? { ...x, user: e.target.value } : x)),
+                      )
+                    }
+                    placeholder="Hej, var är min order #1234?"
+                    style={inputStyle}
+                  />
+                </FormRow>
+                <FormRow label="Desired agent reply">
+                  <textarea
+                    value={ex.assistant}
+                    maxLength={1000}
+                    rows={3}
+                    onChange={(e) =>
+                      setExamples((arr) =>
+                        arr.map((x, j) =>
+                          j === i ? { ...x, assistant: e.target.value } : x,
+                        ),
+                      )
+                    }
+                    placeholder="Hej! Jag kollar din order direkt..."
+                    style={{ ...inputStyle, fontFamily: 'inherit' }}
+                  />
+                </FormRow>
+                <s-button
+                  onClick={() => setExamples((arr) => arr.filter((_, j) => j !== i))}
+                  variant="tertiary"
+                >
+                  Remove
+                </s-button>
+              </s-stack>
+            </s-box>
+          ))}
+
+          {examples.length < MAX_FEW_SHOT && (
+            <s-button
+              onClick={() =>
+                setExamples((arr) => [...arr, { user: '', assistant: '' }])
+              }
+              variant="secondary"
+            >
+              Add example ({examples.length}/{MAX_FEW_SHOT})
+            </s-button>
+          )}
+        </s-stack>
+      </s-section>
+
       <s-section heading="Brand">
         <s-stack direction="block" gap="base">
           <FormRow label="Primary color (bubble, header, send button)">
@@ -198,7 +315,7 @@ export default function SettingsPage() {
           <FormRow label="Default language">
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value as TenantConfig['language'])}
+              onChange={(e) => setLanguage(e.target.value as AssistantConfig['language'])}
               style={inputStyle}
             >
               <option value="sv">Svenska</option>
@@ -212,7 +329,7 @@ export default function SettingsPage() {
           <FormRow label="Default country">
             <select
               value={country}
-              onChange={(e) => setCountry(e.target.value as TenantConfig['country'])}
+              onChange={(e) => setCountry(e.target.value as AssistantConfig['country'])}
               style={inputStyle}
             >
               <option value="SE">Sweden</option>

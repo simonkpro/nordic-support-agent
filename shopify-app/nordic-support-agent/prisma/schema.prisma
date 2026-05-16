@@ -2,24 +2,84 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // pgvector is enabled in the DB; declaring it here lets Prisma keep it
+  // in sync via `prisma migrate`.
+  extensions = [vector]
 }
 
-model TenantConfig {
-  shop      String   @id
-  // JSON-encoded TenantConfig (see app/lib/tenant-config.ts for schema).
-  // Stored as a string so SQLite + Postgres both work; parsed/validated on read.
-  config    String
-  updatedAt DateTime @updatedAt
+// === Knowledge base (per-shop RAG) ==================================
+// A merchant uploads documents (PDF/MD/TXT). We chunk + embed and store
+// chunks alongside their vector. The agent calls search_knowledge_base
+// which runs cosine similarity via pgvector.
+
+model KnowledgeDocument {
+  id        String   @id @default(uuid())
+  shop      String
+  // Null = shared across all assistants in the shop. A non-null value
+  // scopes this document to that specific assistant only. Retrieval
+  // filters to: shared OR (assistantId = active).
+  assistantId String?
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  // 'ingesting' | 'indexed' | 'failed'
+  status    String   @default("ingesting")
+  error     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks    KnowledgeChunk[]
+
+  @@index([shop])
+  @@index([shop, assistantId])
+  @@index([shop, createdAt])
+}
+
+model KnowledgeChunk {
+  id         String                       @id @default(uuid())
+  documentId String
+  shop       String
+  ordinal    Int
+  content    String
+  // Cohere embed-v4.0 = 1536 dims (default Matryoshka output). Strong on
+  // Nordic languages. Switching models means a fresh migration.
+  embedding  Unsupported("vector(1536)")
+  tokenCount Int?
+  createdAt  DateTime                     @default(now())
+
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([shop])
+  @@index([documentId])
+}
+
+// One per "support agent persona" a merchant configures. A shop has many
+// Assistants (Sales, Returns, General Support, …); exactly one is the
+// default (the one customers reach when no specific assistant is targeted).
+//
+// `config` is a JSON-encoded AssistantConfig (see app/lib/assistants.ts);
+// stored as text so both SQLite and Postgres back-ends behave identically.
+model Assistant {
+  id        String   @id @default(uuid())
+  shop      String
+  name      String
+  isDefault Boolean  @default(false)
+  config    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+  // "At most one default per shop" is enforced at the service layer
+  // (assistants.ts) via a transaction that unsets siblings before setting.
+  // A partial unique index would be more correct but Prisma doesn't model
+  // them — not worth a raw-SQL migration for a single-process pilot.
 }
 
 model VerificationCode {

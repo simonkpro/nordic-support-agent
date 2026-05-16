@@ -19,6 +19,10 @@ interface TokenPayload {
   shop: string;
   iat: number;
   exp: number;
+  /** Which assistant the bearer targets. Optional — when omitted, the
+   * server uses the shop's default assistant. Allows the merchant to
+   * embed different widgets on different pages (one per assistant). */
+  aid?: string;
 }
 
 function getSecret(): Buffer {
@@ -42,12 +46,24 @@ function fromBase64url(s: string): Buffer {
   return Buffer.from(padded.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 }
 
-export function signWidgetToken(shop: string, ttlSeconds = DEFAULT_TTL_SECONDS): string {
+export interface SignOptions {
+  ttlSeconds?: number;
+  /** Bind this token to a specific assistant. Omit to let the server
+   * route to the shop's default. */
+  assistantId?: string;
+}
+
+export function signWidgetToken(shop: string, options: SignOptions = {}): string {
   if (!shop || !shop.endsWith('.myshopify.com')) {
     throw new Error('Invalid shop domain');
   }
   const now = Math.floor(Date.now() / 1000);
-  const payload: TokenPayload = { shop, iat: now, exp: now + ttlSeconds };
+  const payload: TokenPayload = {
+    shop,
+    iat: now,
+    exp: now + (options.ttlSeconds ?? DEFAULT_TTL_SECONDS),
+  };
+  if (options.assistantId) payload.aid = options.assistantId;
   const encodedPayload = base64url(JSON.stringify(payload));
   const sig = createHmac('sha256', getSecret()).update(encodedPayload).digest();
   return `${encodedPayload}.${base64url(sig)}`;
@@ -56,6 +72,7 @@ export function signWidgetToken(shop: string, ttlSeconds = DEFAULT_TTL_SECONDS):
 export interface VerifyResult {
   ok: boolean;
   shop?: string;
+  assistantId?: string;
   reason?: 'malformed' | 'bad_signature' | 'expired';
 }
 
@@ -90,5 +107,9 @@ export function verifyWidgetToken(token: string): VerifyResult {
   if (payload.exp < Math.floor(Date.now() / 1000)) {
     return { ok: false, reason: 'expired' };
   }
-  return { ok: true, shop: payload.shop };
+  return {
+    ok: true,
+    shop: payload.shop,
+    ...(payload.aid ? { assistantId: payload.aid } : {}),
+  };
 }

@@ -33,11 +33,23 @@ export interface Integrations {
  * passes the Prisma-backed store and a conversation ID so verification
  * persists across requests.
  */
+export interface KnowledgeSearchResult {
+  content: string;
+  source: string;
+  score: number;
+}
+
 export interface RuntimeContext {
   conversationId?: string;
   verifiedEmail?: string | null;
   verificationStore?: VerificationStore;
   emailSender?: EmailSender;
+  /**
+   * Per-shop knowledge-base search. When provided, the agent gets a
+   * `search_knowledge_base` tool that calls this function. When omitted
+   * (CLI, eval), the tool reports the knowledge base isn't configured.
+   */
+  knowledgeSearch?: (query: string) => Promise<KnowledgeSearchResult[]>;
 }
 
 export function buildTools(
@@ -52,6 +64,7 @@ export function buildTools(
   const verifiedEmail = runtime.verifiedEmail ?? null;
   const verificationStore = runtime.verificationStore ?? new InMemoryVerificationStore();
   const emailSender = runtime.emailSender ?? new ConsoleEmailSender();
+  const knowledgeSearch = runtime.knowledgeSearch;
 
   const record = (name: string, input: unknown, output: unknown) => {
     recorder.push({ name, input, output });
@@ -185,6 +198,36 @@ export function buildTools(
         }
         const refundInfo = await klarna.getRefundInfo(order_number);
         return record('get_refund_info', { order_number }, { refundInfo });
+      },
+    }),
+
+    search_knowledge_base: tool({
+      description:
+        "Search the merchant's knowledge base for policies, FAQs, product info, sizing guides, shipping rules, return rules — anything documented but NOT in the live order / refund / tracking systems. Call this when the customer asks a general question about the store (not specific to an order). Returns the most relevant excerpts with their source document. Quote or paraphrase the excerpts in your reply; do NOT make up details that aren't in the results.",
+      inputSchema: z.object({
+        query: z
+          .string()
+          .min(2)
+          .max(300)
+          .describe('A natural-language search query in the customer\'s language.'),
+      }),
+      execute: async ({ query }) => {
+        if (!knowledgeSearch) {
+          return record('search_knowledge_base', { query }, {
+            results: [],
+            reason: 'knowledge_base_not_configured',
+            note: 'The merchant has not uploaded any knowledge-base documents for this shop. Do not retry; tell the customer you don\'t have that information and offer to escalate.',
+          });
+        }
+        const results = await knowledgeSearch(query);
+        return record('search_knowledge_base', { query }, {
+          results,
+          count: results.length,
+          note:
+            results.length === 0
+              ? 'No relevant excerpts found in the knowledge base.'
+              : 'Use these excerpts as the source of truth. Cite the source filename briefly when answering.',
+        });
       },
     }),
 

@@ -19,7 +19,8 @@ import {
 } from '../lib/conversations.ts';
 import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { PrismaVerificationStore } from '../lib/verification-store.ts';
-import { loadTenantConfig } from '../lib/tenant-config.ts';
+import { getAssistant, loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
+import { searchKnowledge } from '../lib/knowledge.ts';
 
 /**
  * Streaming chat endpoint. Emits the AI SDK UI message stream protocol so
@@ -52,6 +53,8 @@ interface ChatRequestBody {
   sessionId?: string;
   message: string;
   context?: Partial<SystemPromptContext>;
+  /** Which assistant to chat with. Token's assistantId wins if both present. */
+  assistantId?: string;
 }
 
 function isValidBody(value: unknown): value is ChatRequestBody {
@@ -100,6 +103,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonError(401, { error: 'invalid_widget_token', reason: verified.reason }, cors);
   }
   const shop = verified.shop;
+  const tokenAssistantId = verified.assistantId;
 
   const decision = takeToken(getClientIp(request), RATE_LIMIT);
   if (!decision.allowed) {
@@ -169,17 +173,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     { role: 'user', content: body.message } as ModelMessage,
   ];
 
-  const tenantConfig = await loadTenantConfig(shop);
+  // Body can also carry an explicit assistantId (used by the preview which
+  // mints one shop-wide token and picks at request time). Token > body —
+  // a client can't override the assistant the token was issued for.
+  const targetAssistantId = tokenAssistantId ?? body.assistantId;
+
+  const assistant = targetAssistantId
+    ? await getAssistant(targetAssistantId)
+    : await loadOrCreateDefaultAssistant(shop);
+  if (!assistant || assistant.shop !== shop) {
+    return jsonError(404, { error: 'assistant_not_found' }, cors);
+  }
+
   const promptContext: SystemPromptContext = {
-    tenantName: shop.replace('.myshopify.com', ''),
-    country: (convo.country as SystemPromptContext['country']) ?? tenantConfig.country,
-    language: (convo.language as SystemPromptContext['language']) ?? tenantConfig.language,
+    tenantName:
+      assistant.config.business.companyName?.trim() ||
+      shop.replace('.myshopify.com', ''),
+    country: (convo.country as SystemPromptContext['country']) ?? assistant.config.country,
+    language: (convo.language as SystemPromptContext['language']) ?? assistant.config.language,
     verifiedCustomerEmail: convo.verifiedEmail,
+    business: {
+      companyName: assistant.config.business.companyName,
+      type: assistant.config.business.type,
+      ecommerceProductTypes: assistant.config.business.ecommerceProductTypes,
+      description: assistant.config.business.description,
+      physicalLocations: assistant.config.business.physicalLocations,
+      chatbotPurposes: assistant.config.business.chatbotPurposes,
+    },
     agent: {
-      name: tenantConfig.agent.name,
-      tone: tenantConfig.agent.tone,
-      customRules: tenantConfig.agent.customRules,
-      signature: tenantConfig.agent.signature,
+      name: assistant.config.agent.name,
+      tone: assistant.config.agent.tone,
+      customRules: assistant.config.agent.customRules,
+      signature: assistant.config.agent.signature,
+      fewShotExamples: assistant.config.agent.fewShotExamples,
     },
   };
 
@@ -188,6 +214,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     verifiedEmail: convo.verifiedEmail,
     verificationStore: new PrismaVerificationStore(),
     emailSender: new ConsoleEmailSender(),
+    knowledgeSearch: async (q) => {
+      const rows = await searchKnowledge(shop, assistant.id, q);
+      return rows.map((r) => ({ content: r.content, source: r.filename, score: r.score }));
+    },
   };
 
   const conversationId = convo.id;

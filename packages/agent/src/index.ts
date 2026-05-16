@@ -10,6 +10,9 @@ export { streamAgent } from './agent/stream.ts';
 export type { StreamAgentInput } from './agent/stream.ts';
 export { LiveShopifyClient } from './integrations/shopify/live.ts';
 export type { LiveShopifyConfig } from './integrations/shopify/live.ts';
+export { chunkText } from './agent/chunking.ts';
+export type { ChunkOptions } from './agent/chunking.ts';
+export { embedQuery, embedTexts, EMBEDDING_DIM } from './agent/embeddings.ts';
 export {
   ConsoleEmailSender,
   InMemoryVerificationStore,

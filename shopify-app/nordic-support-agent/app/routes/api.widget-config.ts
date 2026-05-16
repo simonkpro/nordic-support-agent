@@ -1,5 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { loadTenantConfig, toPublicConfig } from '../lib/tenant-config.ts';
+import {
+  getAssistant,
+  loadOrCreateDefaultAssistant,
+  toPublicConfig,
+} from '../lib/assistants.ts';
 import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
 
@@ -57,6 +61,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
   }
 
-  const config = await loadTenantConfig(verified.shop);
-  return new Response(JSON.stringify(toPublicConfig(config)), { headers });
+  const assistant = verified.assistantId
+    ? await getAssistant(verified.assistantId)
+    : await loadOrCreateDefaultAssistant(verified.shop);
+  if (!assistant || assistant.shop !== verified.shop) {
+    return new Response(JSON.stringify({ error: 'assistant_not_found' }), { status: 404, headers });
+  }
+  return new Response(JSON.stringify(toPublicConfig(assistant)), { headers });
 };

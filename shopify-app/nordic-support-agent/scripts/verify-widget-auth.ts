@@ -45,7 +45,7 @@ if (malformed.ok || malformed.reason !== 'malformed') {
 console.log('  ✓ PASS: malformed rejected');
 
 console.log('\n5. Expired token (issued with -10s TTL)');
-const expired = signWidgetToken(SHOP, -10);
+const expired = signWidgetToken(SHOP, { ttlSeconds: -10 });
 const expVerify = verifyWidgetToken(expired);
 line('result:', expVerify);
 if (expVerify.ok || expVerify.reason !== 'expired') {

@@ -39,10 +39,25 @@ describe('widget token sign/verify', () => {
   });
 
   it('rejects expired tokens', () => {
-    const t = signWidgetToken('exp.myshopify.com', -10);
+    const t = signWidgetToken('exp.myshopify.com', { ttlSeconds: -10 });
     const v = verifyWidgetToken(t);
     expect(v.ok).toBe(false);
     expect(v.reason).toBe('expired');
+  });
+
+  it('round-trips an assistantId when provided', () => {
+    const t = signWidgetToken('multi.myshopify.com', { assistantId: 'asst_42' });
+    const v = verifyWidgetToken(t);
+    expect(v.ok).toBe(true);
+    expect(v.shop).toBe('multi.myshopify.com');
+    expect(v.assistantId).toBe('asst_42');
+  });
+
+  it('omits assistantId from the verify result when not signed in', () => {
+    const t = signWidgetToken('plain.myshopify.com');
+    const v = verifyWidgetToken(t);
+    expect(v.ok).toBe(true);
+    expect(v.assistantId).toBeUndefined();
   });
 
   it('rejects tokens signed with a different secret', () => {

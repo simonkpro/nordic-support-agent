@@ -33,6 +33,9 @@ export const env = {
   get intentModel() {
     return process.env.AGENT_INTENT_MODEL ?? 'anthropic/claude-haiku-4-5';
   },
+  get embeddingModel() {
+    return process.env.EMBEDDING_MODEL ?? 'cohere/embed-v4.0';
+  },
   get integrationMode(): 'mock' | 'live' {
     return (process.env.INTEGRATION_MODE ?? 'mock') as 'mock' | 'live';
   },

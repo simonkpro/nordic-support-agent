@@ -7,6 +7,13 @@ interface ChatRuntimeProps {
   apiUrl: string;
   widgetToken: string;
   conversationId: string;
+  /**
+   * Optional explicit assistant target. The server treats the token's
+   * assistantId as authoritative when present; this body-level value is
+   * a fallback used by the preview where we mint one shop-wide token and
+   * pick the assistant at request time.
+   */
+  assistantId?: string;
   children: React.ReactNode;
 }
 
@@ -16,15 +23,15 @@ interface ChatRuntimeProps {
  * Bridges the two protocols:
  * - The AI SDK transport wants to send the full message list and pull a
  *   stream back.
- * - Our server only accepts {sessionId, message: lastUserText} and owns
+ * - Our server only accepts {sessionId, message, assistantId?} and owns
  *   the canonical history. We use prepareSendMessagesRequest to extract
- *   the latest user message and pass the conversation id we got from
- *   the loader.
+ *   the latest user message and inject the conversation id + assistant.
  */
 export function ChatRuntimeProvider({
   apiUrl,
   widgetToken,
   conversationId,
+  assistantId,
   children,
 }: ChatRuntimeProps) {
   const transportRef = useRef<DefaultChatTransport<UIMessage> | null>(null);
@@ -40,10 +47,9 @@ export function ChatRuntimeProvider({
               .map((p) => p.text)
               .join('')
           : '';
-        return {
-          headers,
-          body: { sessionId: conversationId, message: text },
-        };
+        const body: Record<string, unknown> = { sessionId: conversationId, message: text };
+        if (assistantId) body.assistantId = assistantId;
+        return { headers, body };
       },
     });
   }
