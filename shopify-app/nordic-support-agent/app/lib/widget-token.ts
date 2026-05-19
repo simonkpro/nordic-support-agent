@@ -1,10 +1,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
- * HMAC-signed widget token. Issued per-shop from the merchant's embedded
- * admin and embedded in the storefront widget script. The public chat API
- * trusts the shop named in the verified token, NOT any shop value in the
- * request body. This closes the "anyone can claim any shop" gap.
+ * HMAC-signed widget token. Issued per-tenant from the merchant admin
+ * and embedded in the widget script. The public chat API trusts the
+ * tenant id named in the verified token, NOT any tenant value in the
+ * request body — this closes the "anyone can claim any tenant" gap.
+ *
+ * The `shop` field is a stable tenant identifier: today it's a
+ * `*.myshopify.com` domain for the Shopify install path, tomorrow it
+ * can be any opaque tenant id (a slug, UUID, custom domain) for a
+ * non-Shopify install. We do not constrain the format here — only
+ * that it's a non-empty string within length limits.
  *
  * Format (compact, JWT-inspired but no algorithm-confusion footgun):
  *   <base64url(JSON { shop, iat, exp })>.<base64url(HMAC-SHA256(payload))>
@@ -61,9 +67,17 @@ export interface SignOptions {
   epoch?: number;
 }
 
+// Opaque tenant id: any non-empty, reasonably-sized string. We do not
+// constrain to *.myshopify.com — the widget targets non-Shopify hosts
+// as well. Length cap is defensive (keeps the token bounded).
+const MAX_TENANT_LEN = 200;
+function isValidTenant(s: string): boolean {
+  return typeof s === 'string' && s.length > 0 && s.length <= MAX_TENANT_LEN;
+}
+
 export function signWidgetToken(shop: string, options: SignOptions = {}): string {
-  if (!shop || !shop.endsWith('.myshopify.com')) {
-    throw new Error('Invalid shop domain');
+  if (!isValidTenant(shop)) {
+    throw new Error('Invalid tenant id');
   }
   const now = Math.floor(Date.now() / 1000);
   const payload: TokenPayload = {
@@ -112,7 +126,7 @@ export function verifyWidgetToken(token: string): VerifyResult {
   }
   if (
     typeof payload.shop !== 'string' ||
-    !payload.shop.endsWith('.myshopify.com') ||
+    !isValidTenant(payload.shop) ||
     typeof payload.exp !== 'number'
   ) {
     return { ok: false, reason: 'malformed' };

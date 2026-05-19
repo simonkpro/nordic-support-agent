@@ -66,8 +66,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     body.kind === 'export' || body.kind === 'erase' ? (body.kind as DsarKind) : null;
   const shop =
     typeof body.shop === 'string' &&
-    body.shop.length <= 200 &&
-    body.shop.endsWith('.myshopify.com')
+    body.shop.length > 0 &&
+    body.shop.length <= 200
       ? body.shop
       : null;
 

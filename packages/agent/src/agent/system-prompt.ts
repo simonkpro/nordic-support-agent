@@ -12,6 +12,13 @@ export interface SystemPromptContext {
   language: 'sv' | 'en' | 'no' | 'da' | 'fi';
   verifiedCustomerEmail: string | null;
   /**
+   * Verification bar for PII tools — controls what the model is allowed
+   * to call and how it must speak about order data. 0 = no PII tools,
+   * 1 = order# + email match (status only), 2 = magic-link verified.
+   * Default 1.
+   */
+  verificationTier?: 0 | 1 | 2;
+  /**
    * Business profile — drives the "About" section of the system prompt.
    * All fields optional; sections are omitted when empty so we don't waste
    * tokens framing the business as "(unspecified)".
@@ -92,9 +99,15 @@ function toneGuidance(tone: Tone | undefined): string {
 
 export function buildSystemPrompt(ctx: SystemPromptContext): string {
   const agentName = ctx.agent?.name?.trim() || 'Support';
-  const verifiedLine = ctx.verifiedCustomerEmail
-    ? `The customer's verified email is: ${ctx.verifiedCustomerEmail}. You may look up their orders for this email directly.`
-    : 'The customer is NOT yet verified. Before exposing any order data you must complete code-via-email verification using the verification tools described below.';
+  const tier = ctx.verificationTier ?? 1;
+  const verifiedLine =
+    tier === 0
+      ? 'This assistant does not have access to order data. For order-specific questions, escalate via create_handoff_ticket.'
+      : tier === 1
+        ? 'Order lookup is gated by order number + email match — no magic-link step. You may return order STATUS only; never echo back customer name, full address, line item details, or payment specifics. Status, currency, total, and item count are fine.'
+        : ctx.verifiedCustomerEmail
+          ? `The customer's verified email is: ${ctx.verifiedCustomerEmail}. You may look up their orders for this email directly.`
+          : 'The customer is NOT yet verified. Before exposing any order data you must complete code-via-email verification using the verification tools described below.';
 
   const customRulesBlock = ctx.agent?.customRules?.trim()
     ? `\n\n# Merchant-specific rules\nThese rules come from ${ctx.tenantName} and take priority over generic guidance, except for grounding/safety rules above which are never overridable:\n${ctx.agent.customRules.trim()}`
@@ -132,12 +145,18 @@ Resolve simple post-purchase questions (where is my order, return status, refund
 # Grounding rules (these are firm and override any merchant-specific rule)
 1. NEVER invent order data, tracking events, dates, or amounts. If a tool didn't return it, you don't know it.
 2. NEVER promise a refund will arrive on a specific date. For Klarna refunds specifically: the merchant API only confirms when the refund was *registered with Klarna*, not when it settles to the customer's bank or card. The honest framing is: "Your refund was registered on {date} for {amount}. Klarna typically credits within 3–5 business days; if you paid by card, your bank determines when it lands."
-3. NEVER expose order details until the conversation is verified via code-via-email. Verification flow:
+3. ${
+    tier === 0
+      ? 'You DO NOT have access to order, tracking, or refund tools. If the customer asks about a specific order, do not promise to look it up — escalate via create_handoff_ticket once you have enough context.'
+      : tier === 1
+        ? 'Order lookup uses order number + email match (no magic-link step). When the customer asks about an order, ask for the order number and the email they used at checkout, then call get_order(order_number, email). Return STATUS ONLY — do not echo customer names, full addresses, line item titles, or payment provider specifics. Status ("paid", "fulfilled", "refunded"), currency, total, item count, and tracking events are fine.'
+        : `NEVER expose order details until the conversation is verified via code-via-email. Verification flow:
    a. When the customer asks for order help, ask for the email they used at checkout (if not already provided in the context).
    b. Call request_verification_code(email). Tell the customer briefly that you've sent a 6-digit code to that address and ask them to paste it back.
    c. When the customer provides the code, call verify_code(code).
    d. ONLY after verify_code returns verified: true may you call get_order / get_tracking / get_refund_info for that email.
-   e. If get_order returns reason: 'verification_required', that means the customer is not yet verified — go back to step (b). Never try to work around this.
+   e. If get_order returns reason: 'verification_required', that means the customer is not yet verified — go back to step (b). Never try to work around this.`
+  }
 4. If get_order returns found: false (verification succeeded but order isn't found, or the email doesn't match the order on file), use neutral phrasing: "we couldn't verify those details" or "the order number and email don't match a record we can show you." Do NOT say "the order doesn't exist" or "the email doesn't match" — both leak information about which one is wrong. Ask the customer to double-check both.
 5. If the customer is angry, has a chargeback dispute, mentions damaged goods over ~1000 SEK, or asks about consumer-rights complaints, escalate to a human via the create_handoff_ticket tool.
 6. If a tool returns null or an error, say so plainly. Do not guess.
@@ -162,13 +181,33 @@ Resolve simple post-purchase questions (where is my order, return status, refund
 - Markdown links are still allowed and encouraged for citing sources: [short label](url).${customRulesBlock}${signatureBlock}${examplesBlock}
 
 # Tools
-- request_verification_code(email): sends a 6-digit code to the customer's email. Use this first when the customer asks for order help and isn't already verified.
-- verify_code(code): verifies the code the customer pastes back. On success the conversation becomes bound to that email.
-- get_order(order_number, email): looks up an order. Requires the conversation to already be verified for the email. Returns verification_required otherwise.
-- get_tracking(order_number): carrier tracking events. Requires verification.
-- get_refund_info(order_number): refund registration data. Requires verification.
-- search_knowledge_base(query): searches the merchant's uploaded documents AND crawled web pages (policies, FAQs, product/sizing/shipping/return rules). Use this for general questions about ${ctx.tenantName} that don't require looking up a specific order. If the tool returns no results or isn't configured, say so honestly — never fabricate answers from store knowledge. **Whenever a returned excerpt has a sourceUrl, you MUST include it as a clickable markdown link of the form [short label](the sourceUrl) in your reply.** Replies are rendered as markdown — use links freely, but follow the Style rules above (no bold, no emojis; dot-bullets "· " for short lists).
-- create_handoff_ticket(reason, summary): escalates to a human agent with full context.`;
+${toolsBlock(tier, ctx.tenantName)}`;
+}
+
+function toolsBlock(tier: 0 | 1 | 2, tenantName: string): string {
+  const kb = `- search_knowledge_base(query): searches the merchant's uploaded documents AND crawled web pages (policies, FAQs, product/sizing/shipping/return rules). Use this for general questions about ${tenantName} that don't require looking up a specific order. If the tool returns no results or isn't configured, say so honestly — never fabricate answers from store knowledge. **Whenever a returned excerpt has a sourceUrl, you MUST include it as a clickable markdown link of the form [short label](the sourceUrl) in your reply.** Replies are rendered as markdown — use links freely, but follow the Style rules above (no bold, no emojis; dot-bullets "· " for short lists).`;
+  const handoff = `- create_handoff_ticket(reason, summary): escalates to a human agent with full context.`;
+  if (tier === 0) {
+    return [kb, handoff].join('\n');
+  }
+  if (tier === 1) {
+    return [
+      "- get_order(order_number, email): returns status-only order info when order# + email match. No customer name, address, line items, or payment specifics.",
+      "- get_tracking(order_number, email): carrier tracking events. Same order# + email match.",
+      "- get_refund_info(order_number, email): refund registration data. Same order# + email match.",
+      kb,
+      handoff,
+    ].join('\n');
+  }
+  return [
+    "- request_verification_code(email): sends a 6-digit code to the customer's email. Use this first when the customer asks for order help and isn't already verified.",
+    '- verify_code(code): verifies the code the customer pastes back. On success the conversation becomes bound to that email.',
+    '- get_order(order_number, email): looks up an order. Requires the conversation to already be verified for the email. Returns verification_required otherwise.',
+    '- get_tracking(order_number): carrier tracking events. Requires verification.',
+    '- get_refund_info(order_number): refund registration data. Requires verification.',
+    kb,
+    handoff,
+  ].join('\n');
 }
 
 function buildAboutBlock(ctx: SystemPromptContext): string {

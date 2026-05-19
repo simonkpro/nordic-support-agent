@@ -22,6 +22,7 @@ import { searchKnowledge } from '../lib/knowledge.ts';
 import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
 import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
+import { extractOriginHost, recordRunMetadata } from '../lib/conversation-log.ts';
 
 const RATE_LIMIT = { capacity: 20, refillPerMinute: 20 };
 const ALLOWED_METHODS = 'POST, OPTIONS';
@@ -232,6 +233,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     country: (convo.country as SystemPromptContext['country']) ?? assistant.config.country,
     language: (convo.language as SystemPromptContext['language']) ?? assistant.config.language,
     verifiedCustomerEmail: convo.verifiedEmail,
+    verificationTier: assistant.config.verificationTier,
     business: {
       companyName: assistant.config.business.companyName,
       type: assistant.config.business.type,
@@ -273,14 +275,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       subjectTemplate: assistant.config.agent.handoffSubjectTemplate,
       bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
+    verificationTier: assistant.config.verificationTier,
   };
 
+  const runStartedAt = Date.now();
   try {
     const result = await runAgent({
       messages: promptMessages,
       context: promptContext,
       runtime,
     });
+    const runLatencyMs = Date.now() - runStartedAt;
     // If the agent successfully completed verification in this turn, persist
     // the verified email on the conversation so future turns skip the dance.
     const verifySuccess = result.toolCalls.find(
@@ -298,6 +303,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (typeof result.totalTokens === 'number') {
       await recordTokens(shop, result.totalTokens);
     }
+    // Analytics write — best effort, never breaks the response. Ordinals
+    // pick up where the existing message log ends: priorUserTurns counted
+    // the user messages before this turn, so the new user turn is at
+    // `priorUserTurns * 2` (user/assistant interleaved) and the assistant
+    // reply at `priorUserTurns * 2 + 1`.
+    const userOrdinal = priorUserTurns * 2;
+    const assistantOrdinal = userOrdinal + 1;
+    const handoffTriggered = result.toolCalls.some(
+      (c) =>
+        c.name === 'create_handoff_ticket' &&
+        typeof c.output === 'object' &&
+        c.output !== null &&
+        (c.output as { ticket_created?: boolean }).ticket_created === true,
+    );
+    recordRunMetadata({
+      conversationId: convo.id,
+      assistantId: assistant.id,
+      originHost: extractOriginHost(
+        request.headers.get('Origin'),
+        request.headers.get('Referer'),
+      ),
+      tokens: result.totalTokens,
+      handoffTriggered,
+      turns: [
+        { ordinal: userOrdinal, role: 'user' },
+        {
+          ordinal: assistantOrdinal,
+          role: 'assistant',
+          tokens: result.totalTokens,
+          latencyMs: runLatencyMs,
+        },
+      ],
+      toolCalls: result.toolCalls.map((c) => ({
+        turnOrdinal: assistantOrdinal,
+        name: c.name,
+        input: c.input,
+        output: c.output,
+      })),
+    }).catch((err) => {
+      console.warn('[chat] analytics write failed:', (err as Error).message);
+    });
     return new Response(
       JSON.stringify({
         sessionId: convo.id,

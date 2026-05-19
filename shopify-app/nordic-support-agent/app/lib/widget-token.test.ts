@@ -68,8 +68,17 @@ describe('widget token sign/verify', () => {
     expect(v.reason).toBe('bad_signature');
   });
 
-  it('rejects shops that are not *.myshopify.com', () => {
-    expect(() => signWidgetToken('attacker.com')).toThrow();
+  it('accepts any non-empty tenant id within length limits', () => {
+    // Shopify path
+    expect(signWidgetToken('a.myshopify.com')).toContain('.');
+    // Non-Shopify tenants — slug, custom domain, UUID — all valid.
+    expect(signWidgetToken('hope-sthlm')).toContain('.');
+    expect(signWidgetToken('shop.example.com')).toContain('.');
+  });
+
+  it('rejects empty or oversized tenant ids', () => {
+    expect(() => signWidgetToken('')).toThrow();
+    expect(() => signWidgetToken('x'.repeat(201))).toThrow();
   });
 
   it('throws when the signing secret is too short', () => {

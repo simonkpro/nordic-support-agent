@@ -6,6 +6,17 @@ import type { ModelMessage } from 'ai';
 import { runAgent } from '../agent/run.ts';
 import { score } from './scoring.ts';
 import type { EvalCase, EvalResult } from './types.ts';
+import { getShopifyClient } from '../integrations/shopify/client.ts';
+import { getKlarnaClient } from '../integrations/klarna/client.ts';
+import { getPostNordClient } from '../integrations/postnord/client.ts';
+
+// Eval runs against the in-package mock commerce clients — the cases
+// reference sample order numbers and the assertions know the shapes.
+const integrations = {
+  shopify: getShopifyClient(),
+  klarna: getKlarnaClient(),
+  postnord: getPostNordClient(),
+};
 
 const here = dirname(fileURLToPath(import.meta.url));
 const casesDir = join(here, 'cases');
@@ -33,9 +44,14 @@ async function runOne(testCase: EvalCase): Promise<EvalResult> {
   const result = await runAgent({
     messages,
     context: testCase.context,
+    integrations,
     // Mirror the case's "already verified" hint into the runtime so the
     // tools and the system prompt agree about the conversation state.
-    runtime: { verifiedEmail: testCase.context.verifiedCustomerEmail },
+    // Default to Tier 2 (current eval behaviour) unless a case overrides.
+    runtime: {
+      verifiedEmail: testCase.context.verifiedCustomerEmail,
+      verificationTier: 2,
+    },
   });
   const toolCallsUsed = result.toolCalls.map((c) => c.name);
   return score(testCase, result.text, toolCallsUsed);

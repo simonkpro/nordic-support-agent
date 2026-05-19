@@ -22,17 +22,34 @@ import {
   type SupportedMime,
 } from '../lib/knowledge.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
+import { getWorkspaceFromRequest } from '../lib/workspace-auth.ts';
+import { redirect } from 'react-router';
 import { AssistantModal } from '../components/assistant-ui/assistant-modal';
 import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
 
 /**
- * Unified test surface. Multiple assistants per preview shop, each with
+ * Unified test surface. Multiple assistants per workspace, each with
  * its own config + chat. The active assistant is tracked in the URL
  * (?a=<id>) so the form remounts with the right config on switch.
  *
- * NOT auth-gated. Strip before production.
+ * Workspace resolution: a workspace session cookie identifies an
+ * authenticated owner — their workspace.id becomes the "shop" value
+ * used by every shop-scoped query. In non-production environments
+ * without a cookie we fall back to the shared PREVIEW_SHOP so the
+ * dev demo path keeps working unauthenticated.
  */
 const PREVIEW_SHOP = 'preview-shop.myshopify.com';
+
+async function resolveShop(request: Request): Promise<string> {
+  const ws = await getWorkspaceFromRequest(request);
+  if (ws) return ws.workspaceId;
+  if (process.env.NODE_ENV === 'production') {
+    // No cookie in prod = no access. The loader/action throw redirect
+    // and bounce the user to /signin.
+    throw redirect('/signin');
+  }
+  return PREVIEW_SHOP;
+}
 const MAX_FEW_SHOT = 5;
 
 const ACCEPTED_MIME: Record<string, SupportedMime> = {
@@ -84,19 +101,23 @@ function buildOrigin(request: Request, url: URL): string {
   return url.origin;
 }
 
-async function pickActive(requestedId: string | null): Promise<AssistantRecord> {
+async function pickActive(
+  shop: string,
+  requestedId: string | null,
+): Promise<AssistantRecord> {
   if (requestedId) {
     const found = await getAssistant(requestedId);
-    if (found && found.shop === PREVIEW_SHOP) return found;
+    if (found && found.shop === shop) return found;
   }
-  return loadOrCreateDefaultAssistant(PREVIEW_SHOP);
+  return loadOrCreateDefaultAssistant(shop);
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   const url = new URL(request.url);
-  const active = await pickActive(url.searchParams.get('a'));
-  const all = await listAssistants(PREVIEW_SHOP);
-  const convo = await createConversation(PREVIEW_SHOP, {
+  const shop = await resolveShop(request);
+  const active = await pickActive(shop, url.searchParams.get('a'));
+  const all = await listAssistants(shop);
+  const convo = await createConversation(shop, {
     language: active.config.language,
     country: active.config.country,
     verifiedEmail: null,
@@ -104,11 +125,11 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   // Scope the doc list to what this assistant can actually see at retrieval
   // time: its own docs + shared (assistantId === null). Other assistants'
   // private docs would only confuse the merchant.
-  const docs = (await listDocuments(PREVIEW_SHOP)).filter(
+  const docs = (await listDocuments(shop)).filter(
     (d) => d.assistantId === null || d.assistantId === active.id,
   );
   return {
-    widgetToken: signWidgetToken(PREVIEW_SHOP, {
+    widgetToken: signWidgetToken(shop, {
       assistantId: active.id,
       epoch: active.tokenEpoch,
     }),
@@ -152,12 +173,13 @@ interface ActionResponse {
 export const action = async ({ request }: ActionFunctionArgs): Promise<ActionResponse> => {
   const formData = await request.formData();
   const intent = formData.get('intent');
+  const shop = await resolveShop(request);
 
   // --- assistant lifecycle ---
   if (intent === 'create-assistant') {
     const name = String(formData.get('name') ?? '').trim() || 'Untitled assistant';
     try {
-      const created = await createAssistant({ shop: PREVIEW_SHOP, name });
+      const created = await createAssistant({ shop, name });
       return { ok: true, intent: 'create-assistant', navigateTo: `?a=${created.id}` };
     } catch (err) {
       return { ok: false, intent: 'create-assistant', error: (err as Error).message };
@@ -241,7 +263,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       await ingestDocument({
-        shop: PREVIEW_SHOP,
+        shop,
         assistantId,
         filename: file.name,
         mimeType: mime,
@@ -255,7 +277,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
   if (intent === 'delete-doc') {
     const id = String(formData.get('id') ?? '');
     if (!id) return { ok: false, intent: 'delete-doc', error: 'missing id' };
-    await deleteDocument(PREVIEW_SHOP, id);
+    await deleteDocument(shop, id);
     return { ok: true, intent: 'delete-doc', message: 'Deleted.' };
   }
 
@@ -354,6 +376,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     },
     language: formData.get('language') ?? undefined,
     country: formData.get('country') ?? undefined,
+    verificationTier: Number(formData.get('verificationTier') ?? 1),
   };
   try {
     await updateAssistant(id, { config: candidate });
@@ -462,6 +485,9 @@ function PreviewBody({
   );
   const [language, setLanguage] = useState(active.config.language);
   const [country, setCountry] = useState(active.config.country);
+  const [verificationTier, setVerificationTier] = useState<0 | 1 | 2>(
+    active.config.verificationTier ?? 1,
+  );
 
   // === Step 3: widget ===
   const [primaryColor, setPrimaryColor] = useState(active.config.widget.primaryColor);
@@ -564,6 +590,7 @@ function PreviewBody({
     );
     form.set('language', language);
     form.set('country', country);
+    form.set('verificationTier', String(verificationTier));
     // Widget — Step 3
     form.set('widget.primaryColor', primaryColor);
     form.set('widget.accentColor', accentColor);
@@ -1189,6 +1216,25 @@ function PreviewBody({
                   + Lägg till exempel
                 </button>
               )}
+            </div>
+          </Field>
+
+          <Field label="Identitetsverifiering för orderdata">
+            <select
+              value={verificationTier}
+              onChange={(e) =>
+                setVerificationTier(Number(e.target.value) as 0 | 1 | 2)
+              }
+              style={inputStyle}
+            >
+              <option value={0}>Ingen — endast kunskapsbas och eskalering</option>
+              <option value={1}>Lätt — ordernummer + e-post måste matcha (endast status)</option>
+              <option value={2}>Stark — engångskod via e-post krävs (full PII)</option>
+            </select>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              Lätt: agenten kan svara på ”var är min order” utan att läcka namn
+              eller adress. Stark: krävs när agenten visar adress, betalning
+              eller utför ändringar.
             </div>
           </Field>
 

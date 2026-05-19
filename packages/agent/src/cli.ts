@@ -4,12 +4,24 @@ import { stdin as input, stdout as output } from 'node:process';
 import type { ModelMessage } from 'ai';
 import { runAgent } from './agent/run.ts';
 import type { SystemPromptContext } from './agent/system-prompt.ts';
+import { getShopifyClient } from './integrations/shopify/client.ts';
+import { getKlarnaClient } from './integrations/klarna/client.ts';
+import { getPostNordClient } from './integrations/postnord/client.ts';
 
 const context: SystemPromptContext = {
   tenantName: 'Nordkust Knit Co.',
   country: 'SE',
   language: 'sv',
   verifiedCustomerEmail: null,
+};
+
+// CLI demo: wire the in-package mock commerce clients explicitly so the
+// agent has order/tracking/refund tools available against the sample
+// data. Production routes inject route-owned adapters instead.
+const integrations = {
+  shopify: getShopifyClient(),
+  klarna: getKlarnaClient(),
+  postnord: getPostNordClient(),
 };
 
 const rl = createInterface({ input, output });
@@ -26,7 +38,7 @@ while (true) {
 
   messages.push({ role: 'user', content: user });
   try {
-    const result = await runAgent({ messages, context });
+    const result = await runAgent({ messages, context, integrations });
     messages.length = 0;
     messages.push(...result.messages);
     if (result.toolCalls.length > 0) {

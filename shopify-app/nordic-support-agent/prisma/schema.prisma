@@ -129,10 +129,97 @@ model Conversation {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  /** Assistant that handled this conversation. Null = unknown/legacy. */
+  assistantId   String?
+  /** Bare host of the page the widget loaded on (no path, no query).
+   * Captured from the first Origin/Referer the chat endpoint sees. */
+  originHost    String?
+  /** Sum of LLM tokens spent on this conversation so far. */
+  totalTokens   Int      @default(0)
+  /** True once create_handoff_ticket has fired for this conversation. */
+  handoffTriggered Boolean @default(false)
+  /** Derived at finalize/purge time. 'escalated' | 'abandoned' | 'resolved'. */
+  outcome       String?
+  /** When the conversation was finalized (purge time or explicit close). */
+  finalizedAt   DateTime?
+
+  turns         ConversationTurn[]
+  toolCalls     ToolCall[]
+
   @@index([shop])
   @@index([updatedAt])
   // Lookup by email at DSAR-erasure / export time.
   @@index([verifiedEmail])
+  @@index([shop, assistantId])
+}
+
+/** Per-turn metadata that survives independent of the messages JSON blob.
+ * Content stays in Conversation.messages (single source of truth); turns
+ * carry only what the insights surface actually queries: timings, token
+ * counts, finish reason. Joined by (conversationId, ordinal). */
+model ConversationTurn {
+  id             String   @id @default(uuid())
+  conversationId String
+  ordinal        Int
+  role           String   // 'user' | 'assistant'
+  tokens         Int?
+  model          String?
+  latencyMs      Int?
+  finishReason   String?
+  at             DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, ordinal])
+}
+
+/** Audit log of every tool call. Inputs/outputs are JSON strings; the
+ * agent's runtime layer is responsible for redacting PII *before* it
+ * reaches here when the tier policy requires it. */
+model ToolCall {
+  id             String   @id @default(uuid())
+  conversationId String
+  turnOrdinal    Int       // assistant-turn ordinal that produced the call
+  name           String
+  input          String    // JSON
+  output         String    // JSON (may be truncated by writer)
+  latencyMs      Int?
+  errorMessage   String?
+  at             DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, turnOrdinal])
+  @@index([name])
+}
+
+/** Survives the 24h conversation purge. Aggregates only — no PII. The
+ * purge cron increments these as it deletes each expiring conversation,
+ * so the insights surface can query "last 30 days" without keeping the
+ * raw message bodies that long. */
+model ConversationDaily {
+  shop              String
+  day               String  // YYYY-MM-DD UTC of conversation creation
+  assistantId       String  // empty string for legacy rows w/o assistant
+
+  conversationCount Int     @default(0)
+  resolvedCount     Int     @default(0)
+  escalatedCount    Int     @default(0)
+  abandonedCount    Int     @default(0)
+
+  totalTokens       Int     @default(0)
+  totalTurns        Int     @default(0)
+
+  /** Cumulative tool-call counts as a JSON object: {get_order: 12, ...}. */
+  toolCallCounts    String  @default("{}")
+  /** Origin-host counts as a JSON object: {"shop.example.com": 47, ...}. */
+  originHostCounts  String  @default("{}")
+
+  updatedAt         DateTime @updatedAt
+
+  @@id([shop, day, assistantId])
+  @@index([shop])
+  @@index([day])
 }
 
 /** GDPR data-subject-access-request audit + one-shot guard. A row is
@@ -149,6 +236,44 @@ model DsarRequest {
 
   @@index([shop, email])
   @@index([requestedAt])
+}
+
+/** Non-Shopify tenant. A workspace owns one or more Assistants, the
+ * matching KnowledgeDocuments, Conversations, etc. The `shop` field
+ * on those tables holds the workspace.id (a UUID) — Shopify shops use
+ * the same column but with a `*.myshopify.com` value. From the rest of
+ * the app's perspective, both are opaque tenant strings. */
+model Workspace {
+  id         String   @id @default(uuid())
+  ownerEmail String   @unique
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/** Short-TTL sign-in code emailed to the owner. One row per email at a
+ * time; subsequent issuances overwrite. Lives separately from
+ * VerificationCode so customer-email verification and merchant-owner
+ * sign-in never share state. */
+model WorkspaceSignInCode {
+  email        String   @id
+  codeHash     String
+  expiresAt    DateTime
+  attemptsLeft Int      @default(5)
+  createdAt    DateTime @default(now())
+}
+
+/** Session cookie row. Token is the cookie value; rows hold expiry +
+ * workspace pointer. Rotating WIDGET_TOKEN_SECRET does not invalidate
+ * these — separate trust domain. */
+model WorkspaceSession {
+  id          String   @id @default(uuid())
+  workspaceId String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([expiresAt])
 }
 
 model Session {

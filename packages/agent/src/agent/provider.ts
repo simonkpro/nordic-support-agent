@@ -17,6 +17,23 @@ import { env } from '../env.ts';
  * Model strings can keep the gateway "provider/model" form (e.g.
  * "anthropic/claude-sonnet-4-6"); the matching prefix is stripped before
  * the provider sees it. Lets the same env values work across providers.
+ *
+ * # Zero data retention (ZDR)
+ *
+ * PRIVACY.md commits to ZDR for LLM inference. That commitment is only
+ * honoured through the Vercel AI Gateway path — the gateway does NOT
+ * persist prompt or completion bodies by default, and the model
+ * providers we route through (Anthropic) are configured for ZDR at the
+ * gateway level. Docs:
+ *   https://vercel.com/docs/ai-gateway/privacy
+ *   https://vercel.com/docs/ai-gateway/observability  (logging is opt-in)
+ *
+ * Direct-provider paths ('anthropic', 'google') bypass the gateway and
+ * inherit whatever logging policy that provider has — Anthropic logs
+ * prompts/completions for abuse review by default unless the workspace
+ * has the ZDR programme enabled. We therefore refuse to boot in
+ * production with a non-gateway provider unless ALLOW_DIRECT_PROVIDER=1
+ * is set, so misconfiguration can't silently violate the privacy notice.
  */
 export function getModel(modelString: string): LanguageModel {
   const provider = env.aiProvider;
@@ -53,6 +70,17 @@ export function assertProviderConfigured(): void {
   if (provider === 'google' && !env.googleApiKey) {
     throw new Error(
       'AI_PROVIDER=google but GOOGLE_GENERATIVE_AI_API_KEY is not set. Add a key from https://aistudio.google.com.',
+    );
+  }
+  // ZDR enforcement: production must go through the gateway unless the
+  // operator explicitly opts out. See the block comment above for why.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    provider !== 'gateway' &&
+    process.env.ALLOW_DIRECT_PROVIDER !== '1'
+  ) {
+    throw new Error(
+      `AI_PROVIDER=${provider} in production. PRIVACY.md commits to ZDR via Vercel AI Gateway; direct providers may log prompts and completions. Set AI_PROVIDER=gateway, or set ALLOW_DIRECT_PROVIDER=1 if you have a separate ZDR agreement with the provider and have updated PRIVACY.md accordingly.`,
     );
   }
 }

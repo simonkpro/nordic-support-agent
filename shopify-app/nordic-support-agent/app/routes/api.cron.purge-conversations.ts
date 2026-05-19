@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { purgeExpiredConversations } from '../lib/conversations.ts';
+import { purgeExpiredAndRollUp } from '../lib/conversation-rollup.ts';
 
 /**
  * Daily cron: purge conversations whose updatedAt is past the 24h TTL.
@@ -26,9 +26,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const { deleted } = await purgeExpiredConversations();
+  const { deleted, rolledUp } = await purgeExpiredAndRollUp();
   return new Response(
-    JSON.stringify({ ok: true, deleted, at: new Date().toISOString() }),
+    JSON.stringify({ ok: true, deleted, rolledUp, at: new Date().toISOString() }),
     { headers: { 'Content-Type': 'application/json' } },
   );
 };

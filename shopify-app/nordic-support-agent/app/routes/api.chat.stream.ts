@@ -24,6 +24,7 @@ import { searchKnowledge } from '../lib/knowledge.ts';
 import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
 import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
+import { extractOriginHost, recordRunMetadata } from '../lib/conversation-log.ts';
 
 /**
  * Streaming chat endpoint. Emits the AI SDK UI message stream protocol so
@@ -222,6 +223,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     country: (convo.country as SystemPromptContext['country']) ?? assistant.config.country,
     language: (convo.language as SystemPromptContext['language']) ?? assistant.config.language,
     verifiedCustomerEmail: convo.verifiedEmail,
+    verificationTier: assistant.config.verificationTier,
     business: {
       companyName: assistant.config.business.companyName,
       type: assistant.config.business.type,
@@ -267,10 +269,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       subjectTemplate: assistant.config.agent.handoffSubjectTemplate,
       bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
+    verificationTier: assistant.config.verificationTier,
   };
 
   const conversationId = convo.id;
   const userMessage = body.message;
+  const originHost = extractOriginHost(
+    request.headers.get('Origin'),
+    request.headers.get('Referer'),
+  );
+  const runStartedAt = Date.now();
 
   try {
     const result = streamAgent({
@@ -278,6 +286,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       context: promptContext,
       runtime,
       onFinish: async ({ text, toolCalls, totalTokens }) => {
+        const runLatencyMs = Date.now() - runStartedAt;
         // Persist verification first so the next turn sees it.
         const verifySuccess = toolCalls.find(
           (c) =>
@@ -294,6 +303,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (typeof totalTokens === 'number') {
           await recordTokens(shop, totalTokens);
         }
+        const userOrdinal = priorUserTurns * 2;
+        const assistantOrdinal = userOrdinal + 1;
+        const handoffTriggered = toolCalls.some(
+          (c) =>
+            c.name === 'create_handoff_ticket' &&
+            typeof c.output === 'object' &&
+            c.output !== null &&
+            (c.output as { ticket_created?: boolean }).ticket_created === true,
+        );
+        recordRunMetadata({
+          conversationId,
+          assistantId: assistant.id,
+          originHost,
+          tokens: totalTokens,
+          handoffTriggered,
+          turns: [
+            { ordinal: userOrdinal, role: 'user' },
+            {
+              ordinal: assistantOrdinal,
+              role: 'assistant',
+              tokens: totalTokens,
+              latencyMs: runLatencyMs,
+            },
+          ],
+          toolCalls: toolCalls.map((c) => ({
+            turnOrdinal: assistantOrdinal,
+            name: c.name,
+            input: c.input,
+            output: c.output,
+          })),
+        }).catch((err) => {
+          console.warn('[chat.stream] analytics write failed:', (err as Error).message);
+        });
       },
     });
 
