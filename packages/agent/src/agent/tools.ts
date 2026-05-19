@@ -36,7 +36,19 @@ export interface Integrations {
 export interface KnowledgeSearchResult {
   content: string;
   source: string;
+  /** Public URL when the excerpt came from a crawled page (citable link). */
+  sourceUrl?: string | null;
   score: number;
+}
+
+/**
+ * Replace {placeholder} tokens in a merchant-supplied template with the
+ * provided values. Unknown placeholders are left as-is so a merchant who
+ * writes `{firstName}` in their template sees the literal token in the
+ * email — easier to debug than silent emptiness.
+ */
+function renderTemplate(tpl: string, vars: Record<string, string>): string {
+  return tpl.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? vars[name] ?? '' : m));
 }
 
 export interface RuntimeContext {
@@ -50,6 +62,47 @@ export interface RuntimeContext {
    * (CLI, eval), the tool reports the knowledge base isn't configured.
    */
   knowledgeSearch?: (query: string) => Promise<KnowledgeSearchResult[]>;
+  /**
+   * Count of customer turns in the conversation so far (excluding the
+   * current LLM reply being generated). Used to gate create_handoff_ticket
+   * — the model can't escalate on a one-line first message.
+   */
+  userTurnCount?: number;
+  /** Display name shown in handoff emails. */
+  agentName?: string;
+  /**
+   * Configured destination + templates for handoff emails. Omit either
+   * the sender or the destination and create_handoff_ticket will refuse
+   * with a clear reason instead of silently dropping the escalation.
+   */
+  handoffSender?: HandoffSender;
+  handoff?: {
+    destinationEmail?: string;
+    subjectTemplate?: string;
+    bodyTemplate?: string;
+  };
+}
+
+export interface HandoffPayload {
+  /** Pre-rendered subject — placeholders already substituted. */
+  subject: string;
+  /** Pre-rendered body — placeholders already substituted. */
+  body: string;
+  to: string;
+  reason: string;
+  summary: string;
+  conversationId: string;
+  verifiedEmail: string | null;
+  agentName: string;
+}
+export interface HandoffSendResult {
+  ok: boolean;
+  /** Provider-side message id when available (helps debug deliverability). */
+  messageId?: string;
+  error?: string;
+}
+export interface HandoffSender {
+  send(payload: HandoffPayload): Promise<HandoffSendResult>;
 }
 
 export function buildTools(
@@ -203,7 +256,7 @@ export function buildTools(
 
     search_knowledge_base: tool({
       description:
-        "Search the merchant's knowledge base for policies, FAQs, product info, sizing guides, shipping rules, return rules — anything documented but NOT in the live order / refund / tracking systems. Call this when the customer asks a general question about the store (not specific to an order). Returns the most relevant excerpts with their source document. Quote or paraphrase the excerpts in your reply; do NOT make up details that aren't in the results.",
+        "Search the merchant's knowledge base for policies, FAQs, product info, sizing guides, shipping rules, return rules — anything documented but NOT in the live order / refund / tracking systems. Call this when the customer asks a general question about the store (not specific to an order). Returns the most relevant excerpts with their source document (filename) and, when the excerpt came from a crawled page, a sourceUrl you can include as a link. Quote or paraphrase the excerpts in your reply; do NOT make up details that aren't in the results. When a sourceUrl is present and the customer would benefit from reading more, include it as a markdown link in your reply.",
       inputSchema: z.object({
         query: z
           .string()
@@ -220,20 +273,36 @@ export function buildTools(
           });
         }
         const results = await knowledgeSearch(query);
+        // Compute the unique citable URLs up front — we surface them as a
+        // top-level array AND in a directive instruction so the model
+        // cannot plausibly claim "no link is available". Pair each URL
+        // with a human label (the document title / filename) so the model
+        // can write meaningful link text.
+        const citableSources: Array<{ label: string; url: string }> = [];
+        const seenUrls = new Set<string>();
+        for (const r of results) {
+          if (r.sourceUrl && !seenUrls.has(r.sourceUrl)) {
+            seenUrls.add(r.sourceUrl);
+            citableSources.push({ label: r.source, url: r.sourceUrl });
+          }
+        }
         return record('search_knowledge_base', { query }, {
           results,
           count: results.length,
+          citableSources,
           note:
             results.length === 0
-              ? 'No relevant excerpts found in the knowledge base.'
-              : 'Use these excerpts as the source of truth. Cite the source filename briefly when answering.',
+              ? 'No relevant excerpts found in the knowledge base. Do not invent a link.'
+              : citableSources.length > 0
+                ? `Use these excerpts as the source of truth. The following pages are available as clickable sources — you MUST include at least one of them as a markdown link in your reply, written as [label](url). Never claim no link is available — these URLs ARE available:\n${citableSources.map((s) => `- [${s.label}](${s.url})`).join('\n')}`
+                : 'Use these excerpts as the source of truth. No public URL is associated with these results; do not invent one.',
         });
       },
     }),
 
     create_handoff_ticket: tool({
       description:
-        'Escalate the conversation to a human support agent. Use when: the customer is angry, the question involves consumer-rights / legal disputes, the issue involves damaged goods over ~1000 SEK, a chargeback is mentioned, or you cannot answer with grounded data.',
+        'Escalate the conversation to a human support agent by emailing the merchant\'s support inbox. Use when: the customer is angry, the question involves consumer-rights / legal disputes, the issue involves damaged goods over ~1000 SEK, a chargeback is mentioned, or you cannot answer with grounded data. NOTE: this tool will refuse if the conversation is too brief (one-line first messages) — gather order context, a clear description, and verify the customer first.',
       inputSchema: z.object({
         reason: z.enum([
           'angry_customer',
@@ -250,10 +319,84 @@ export function buildTools(
           ),
       }),
       execute: async ({ reason, summary }) => {
+        const turns = runtime.userTurnCount ?? 0;
+        const trimmedSummary = summary.trim();
+        // Allow when EITHER: the conversation has run a few turns already
+        // OR the agent has gathered both a meaty summary AND a verified
+        // identity (so we know who/what the ticket is about).
+        const enoughTurns = turns >= 3;
+        const richContext = trimmedSummary.length >= 40 && Boolean(verifiedEmail);
+        if (!enoughTurns && !richContext) {
+          return record('create_handoff_ticket', { reason, summary }, {
+            ticket_created: false,
+            reason_refused: 'too_early',
+            note: `Escalation refused: the conversation is too short to escalate (${turns} customer turn(s), summary length ${trimmedSummary.length} chars, verified: ${Boolean(verifiedEmail)}). Before calling this tool again, ask the customer follow-up questions: what exactly happened, which product / order, when, and any photos. Only escalate once you have a clear description (40+ chars) AND a verified customer identity, OR after at least 3 customer turns. Do NOT tell the customer "I'm escalating" — just continue gathering info.`,
+          });
+        }
+
+        const handoff = runtime.handoff ?? {};
+        const destination = handoff.destinationEmail?.trim();
+        const sender = runtime.handoffSender;
+        if (!destination || !sender) {
+          return record('create_handoff_ticket', { reason, summary }, {
+            ticket_created: false,
+            reason_refused: 'not_configured',
+            note: 'Handoff email is not configured for this assistant. Tell the customer (politely) to email the merchant\'s general contact address directly, and do not pretend a ticket was created.',
+          });
+        }
+
+        const agentName = runtime.agentName ?? 'Support';
+        const subjectTpl = handoff.subjectTemplate?.trim() || '[Support] {reason}: {summary_short}';
+        const bodyTpl =
+          handoff.bodyTemplate?.trim() ||
+          [
+            'A customer support conversation has been escalated by {agentName}.',
+            '',
+            'Reason: {reason}',
+            'Verified email: {verifiedEmail}',
+            'Conversation id: {conversationId}',
+            '',
+            'Summary:',
+            '{summary}',
+          ].join('\n');
+
+        const vars: Record<string, string> = {
+          reason,
+          summary: trimmedSummary,
+          summary_short: trimmedSummary.slice(0, 80),
+          agentName,
+          conversationId,
+          verifiedEmail: verifiedEmail ?? '(not verified)',
+        };
+        const subject = renderTemplate(subjectTpl, vars);
+        const body = renderTemplate(bodyTpl, vars);
+
+        const result = await sender.send({
+          subject,
+          body,
+          to: destination,
+          reason,
+          summary: trimmedSummary,
+          conversationId,
+          verifiedEmail,
+          agentName,
+        });
+
+        if (!result.ok) {
+          return record('create_handoff_ticket', { reason, summary }, {
+            ticket_created: false,
+            reason_refused: 'send_failed',
+            error: result.error ?? 'unknown',
+            note: 'The escalation email could not be sent. Apologise, give the merchant\'s contact email if you know it, and ask the customer to write to support directly.',
+          });
+        }
+
         return record('create_handoff_ticket', { reason, summary }, {
           ticket_created: true,
-          ticket_id: `mock_ticket_${Date.now()}`,
+          delivered_to: destination,
+          message_id: result.messageId,
           reason,
+          note: 'Escalation email delivered. Tell the customer briefly that a human will follow up — do not include the destination email or message id.',
         });
       },
     }),

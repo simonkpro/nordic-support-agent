@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
       isDefault: a.isDefault,
       // Each assistant gets its own token bound to its id. Customers
       // dropping the snippet on a given page reach this exact assistant.
-      token: signWidgetToken(session.shop, { assistantId: a.id }),
+      token: signWidgetToken(session.shop, { assistantId: a.id, epoch: a.tokenEpoch }),
     })),
   };
 };

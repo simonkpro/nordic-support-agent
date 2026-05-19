@@ -1,4 +1,4 @@
-import { streamText, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, stepCountIs, smoothStream, type ModelMessage } from 'ai';
 import { env } from '../env.ts';
 import { assertProviderConfigured, getModel } from './provider.ts';
 import { buildSystemPrompt, type SystemPromptContext } from './system-prompt.ts';
@@ -22,6 +22,9 @@ export interface StreamAgentInput {
   onFinish?: (event: {
     text: string;
     toolCalls: ToolCallRecord[];
+    /** Total tokens (input + output) reported by the provider, when
+     * available. Used by callers to enforce per-tenant spend caps. */
+    totalTokens?: number;
   }) => Promise<void> | void;
 }
 
@@ -48,10 +51,18 @@ export function streamAgent(input: StreamAgentInput) {
     stopWhen: stepCountIs(6),
     temperature: 0.2,
     maxOutputTokens: LIMITS.maxOutputTokens,
+    // Smooth out the raw provider token bursts into a steady word-by-word
+    // cadence. Words are delivered ~every 35ms so markdown has time to
+    // parse incrementally without the staircase/jitter effect.
+    experimental_transform: smoothStream({ delayInMs: 35, chunking: 'word' }),
     onFinish: async (event) => {
       if (input.onFinish) {
         try {
-          await input.onFinish({ text: event.text, toolCalls });
+          await input.onFinish({
+            text: event.text,
+            toolCalls,
+            totalTokens: extractTotalTokens(event.totalUsage ?? event.usage),
+          });
         } catch (err) {
           // Don't take the response down because of a persistence hiccup —
           // log and continue. The client already got the streamed reply.
@@ -60,6 +71,16 @@ export function streamAgent(input: StreamAgentInput) {
       }
     },
   });
+}
+
+function extractTotalTokens(usage: unknown): number | undefined {
+  if (!usage || typeof usage !== 'object') return undefined;
+  const u = usage as { totalTokens?: number; inputTokens?: number; outputTokens?: number };
+  if (typeof u.totalTokens === 'number') return u.totalTokens;
+  if (typeof u.inputTokens === 'number' && typeof u.outputTokens === 'number') {
+    return u.inputTokens + u.outputTokens;
+  }
+  return undefined;
 }
 
 function toInputMessages(messages: ModelMessage[]): InputMessage[] {

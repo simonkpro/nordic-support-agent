@@ -1,41 +1,63 @@
 import { forwardRef } from 'react';
 import { AssistantModalPrimitive } from '@assistant-ui/react';
-import { Bot, ChevronDown } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  HelpCircle,
+  MessageCircle,
+  Sparkles,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { Thread } from './thread';
+import {
+  Thread,
+  type SendFill,
+  type SendIcon,
+  type SendShape,
+} from './thread';
+
+export type IconStyle = 'bot' | 'chat_bubble' | 'sparkle' | 'help';
+export type LauncherShape = 'circle' | 'rounded' | 'square';
 
 interface AssistantModalProps {
-  /** Anchor container — when omitted, anchors to the body. */
   container?: HTMLElement;
   defaultOpen?: boolean;
-  /** Pixel width of the popover. Defaults to 400. */
   width?: number;
-  /** Pixel height of the popover. Defaults to 500. */
   height?: number;
-  /** Per-assistant rotating "thinking" phrases. */
-  thinkingVerbs?: string[];
-  /** Empty-state greeting shown before the first message. */
   greeting?: string;
+  iconStyle?: IconStyle;
+  launcherShape?: LauncherShape;
+  launcherIconColor?: string;
+  placeholder?: string;
+  sendIcon?: SendIcon;
+  sendShape?: SendShape;
+  sendFill?: SendFill;
+  sendIconColor?: string;
 }
 
-/**
- * Floating chat modal — bot icon button bottom-right that morphs to a
- * chevron when open, plus a slide-from-bottom-right popover hosting the
- * Thread. Based on assistant-ui's reference modal example.
- */
 export function AssistantModal({
   container,
   defaultOpen,
   width = 400,
   height = 500,
-  thinkingVerbs,
   greeting,
+  iconStyle = 'bot',
+  launcherShape = 'circle',
+  launcherIconColor = '#ffffff',
+  placeholder,
+  sendIcon,
+  sendShape,
+  sendFill,
+  sendIconColor,
 }: AssistantModalProps) {
   return (
     <AssistantModalPrimitive.Root defaultOpen={defaultOpen}>
       <AssistantModalPrimitive.Anchor className="absolute right-4 bottom-4 size-11">
         <AssistantModalPrimitive.Trigger asChild>
-          <AssistantModalButton />
+          <AssistantModalButton
+            iconStyle={iconStyle}
+            launcherShape={launcherShape}
+            launcherIconColor={launcherIconColor}
+          />
         </AssistantModalPrimitive.Trigger>
       </AssistantModalPrimitive.Anchor>
       <AssistantModalPrimitive.Content
@@ -49,7 +71,14 @@ export function AssistantModal({
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2',
         )}
       >
-        <Thread thinkingVerbs={thinkingVerbs} greeting={greeting} />
+        <Thread
+          greeting={greeting}
+          placeholder={placeholder}
+          sendIcon={sendIcon}
+          sendShape={sendShape}
+          sendFill={sendFill}
+          sendIconColor={sendIconColor}
+        />
       </AssistantModalPrimitive.Content>
     </AssistantModalPrimitive.Root>
   );
@@ -57,23 +86,45 @@ export function AssistantModal({
 
 interface AssistantModalButtonProps {
   'data-state'?: 'open' | 'closed';
+  iconStyle: IconStyle;
+  launcherShape: LauncherShape;
+  launcherIconColor: string;
 }
 
 const AssistantModalButton = forwardRef<HTMLButtonElement, AssistantModalButtonProps>(
-  function AssistantModalButton({ 'data-state': state, ...rest }, ref) {
+  function AssistantModalButton(
+    { 'data-state': state, iconStyle, launcherShape, launcherIconColor, ...rest },
+    ref,
+  ) {
     const tooltip = state === 'open' ? 'Close assistant' : 'Open assistant';
+    const Glyph =
+      iconStyle === 'chat_bubble'
+        ? MessageCircle
+        : iconStyle === 'sparkle'
+          ? Sparkles
+          : iconStyle === 'help'
+            ? HelpCircle
+            : Bot;
+    const shapeCls =
+      launcherShape === 'square'
+        ? 'rounded-none'
+        : launcherShape === 'rounded'
+          ? 'rounded-xl'
+          : 'rounded-full';
     return (
       <button
         ref={ref}
         type="button"
         aria-label={tooltip}
+        style={{ color: launcherIconColor }}
         className={cn(
-          'bg-primary text-primary-foreground relative inline-flex size-full items-center justify-center rounded-full shadow-md',
+          'bg-primary relative inline-flex size-full items-center justify-center shadow-md',
+          shapeCls,
           'transition-transform hover:scale-110 active:scale-90',
         )}
         {...rest}
       >
-        <Bot
+        <Glyph
           data-state={state}
           className="absolute size-5 transition-all data-[state=closed]:rotate-0 data-[state=closed]:scale-100 data-[state=open]:rotate-90 data-[state=open]:scale-0"
         />

@@ -32,6 +32,11 @@ model KnowledgeDocument {
   // 'ingesting' | 'indexed' | 'failed'
   status    String   @default("ingesting")
   error     String?
+  // When this doc came from a crawled web page (sitemap), sourceUrl is
+  // the page URL so the agent can cite/link to it. lastmod (from the
+  // sitemap entry) lets the crawler skip unchanged pages on re-runs.
+  sourceUrl String?
+  lastmod   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -40,6 +45,7 @@ model KnowledgeDocument {
   @@index([shop])
   @@index([shop, assistantId])
   @@index([shop, createdAt])
+  @@index([shop, sourceUrl])
 }
 
 model KnowledgeChunk {
@@ -71,6 +77,12 @@ model Assistant {
   shop      String
   name      String
   isDefault Boolean  @default(false)
+  /** Only published assistants are reachable via /api/widget-public-token.
+   * Draft assistants stay private so a leaked id can't be chatted with. */
+  published Boolean  @default(true)
+  /** Bumped to revoke every outstanding widget token for this assistant.
+   * Token carries `ep`; chat endpoints reject mismatches. Cheap rotation. */
+  tokenEpoch Int     @default(1)
   config    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -80,6 +92,20 @@ model Assistant {
   // (assistants.ts) via a transaction that unsets siblings before setting.
   // A partial unique index would be more correct but Prisma doesn't model
   // them — not worth a raw-SQL migration for a single-process pilot.
+}
+
+/** Per-shop, per-day LLM token spend. The chat route increments this in
+ * the onFinish callback; the next request to start checks against the
+ * configured cap and returns 503 if exceeded. Keeps a malicious actor
+ * from burning the merchant's whole monthly budget in one afternoon. */
+model ShopDailyUsage {
+  shop        String
+  day         String  // YYYY-MM-DD in UTC
+  totalTokens Int     @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@id([shop, day])
+  @@index([day])
 }
 
 model VerificationCode {
@@ -105,6 +131,24 @@ model Conversation {
 
   @@index([shop])
   @@index([updatedAt])
+  // Lookup by email at DSAR-erasure / export time.
+  @@index([verifiedEmail])
+}
+
+/** GDPR data-subject-access-request audit + one-shot guard. A row is
+ * created when a customer hits /api/dsar/start; completedAt is stamped
+ * when the magic-link is consumed by /api/dsar/complete. The signed
+ * link embeds the row id so re-use after completion is rejected. */
+model DsarRequest {
+  id          String    @id @default(uuid())
+  shop        String
+  email       String
+  kind        String    // 'export' | 'erase'
+  requestedAt DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([shop, email])
+  @@index([requestedAt])
 }
 
 model Session {

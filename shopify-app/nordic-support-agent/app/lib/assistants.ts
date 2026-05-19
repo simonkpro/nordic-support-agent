@@ -67,6 +67,33 @@ export const AssistantConfigSchema = z.object({
     chatbotPurposes: z
       .array(ChatbotPurposeEnum)
       .default(['business_questions', 'general_support']),
+    // Optional sitemap.xml — when set, the crawler fetches each listed
+    // page, extracts main content, and stores it as a scoped knowledge
+    // doc (so the agent can cite the URL). Excludes default to the noisy
+    // shop paths (cart, checkout, account, products). Newline-separated.
+    sitemapUrl: z.string().max(500).default(''),
+    sitemapExcludeGlobs: z
+      .string()
+      .max(2000)
+      .default(
+        [
+          '/cart',
+          '/cart/*',
+          '/checkout',
+          '/checkout/*',
+          '/account',
+          '/account/*',
+          '/products/*',
+          // Locale-prefixed variants (e.g. /en-dk/products/..., /sv-se/cart)
+          '/*/cart',
+          '/*/cart/*',
+          '/*/checkout',
+          '/*/checkout/*',
+          '/*/account',
+          '/*/account/*',
+          '/*/products/*',
+        ].join('\n'),
+      ),
   }),
   // === Step 2: Customize agent (Skräddarsy agent) ==================
   agent: z.object({
@@ -76,23 +103,6 @@ export const AssistantConfigSchema = z.object({
     signature: z.string().max(120).default(''),
     customRules: z.string().max(2000).default(''),
     fewShotExamples: z.array(FewShotExampleSchema).max(5).default([]),
-    /**
-     * Phrases shown while the agent is generating a reply. The widget
-     * cycles through these every couple seconds — gives the chat character
-     * and avoids the static "Thinking…" feel. Up to 15.
-     */
-    thinkingVerbs: z
-      .array(z.string().min(1).max(40))
-      .max(15)
-      .default([
-        'Funderar',
-        'Tänker',
-        'Söker upp',
-        'Letar upp dokument',
-        'Knåpar',
-        'Tar mig en funderare',
-        'Dubbelkollar',
-      ]),
     /**
      * Phrases shown when something goes wrong. Each is paired with the
      * scenario that triggers it; merchant edits the copy, not the code.
@@ -108,9 +118,46 @@ export const AssistantConfigSchema = z.object({
         unconfigured: z.string().max(200).default(''),
       })
       .default({}),
+    // === Handoff (human escalation) ==================================
+    // The merchant's support inbox. When the agent decides to escalate,
+    // an email is sent here with reason + summary + conversation id.
+    // Empty = no escalation route configured (the tool refuses).
+    handoffEmail: z.string().email().or(z.literal('')).default(''),
+    handoffSubjectTemplate: z
+      .string()
+      .max(200)
+      .default('[Support] {reason}: {summary_short}'),
+    handoffBodyTemplate: z
+      .string()
+      .max(4000)
+      .default(
+        [
+          'A customer support conversation has been escalated by {agentName}.',
+          '',
+          'Reason: {reason}',
+          'Verified email: {verifiedEmail}',
+          'Conversation id: {conversationId}',
+          '',
+          'Summary:',
+          '{summary}',
+        ].join('\n'),
+      ),
   }),
   language: z.enum(['sv', 'en', 'no', 'da', 'fi']).default('sv'),
   country: z.enum(['SE', 'NO', 'DK', 'FI']).default('SE'),
+  /**
+   * Identity verification bar for tools that touch PII.
+   *  - 0: no verification. Agent answers generic questions only; PII-fetching
+   *       tools (e.g. get_order) are not exposed.
+   *  - 1: order# + email match. WISMO-only — agent can return status/ETA but
+   *       must not echo full name/address/payment.
+   *  - 2: email magic-link verification required before revealing PII or
+   *       performing any mutation. Strongest, used when agent surfaces
+   *       address/refund amounts or can change order state.
+   * Default 1 covers the common WISMO case; merchants opt up to 2 for
+   * sensitive surfaces, down to 0 for FAQ-only assistants.
+   */
+  verificationTier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(1),
   // === Step 3: Customize widget (Skräddarsy chattruta) =============
   widget: z.object({
     primaryColor: z
@@ -122,8 +169,29 @@ export const AssistantConfigSchema = z.object({
       .regex(/^#[0-9a-fA-F]{3,8}$/)
       .default('#1f2937'),
     iconStyle: z.enum(['bot', 'chat_bubble', 'sparkle', 'help']).default('bot'),
+    launcherShape: z.enum(['circle', 'rounded', 'square']).default('circle'),
+    launcherIconColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{3,8}$/)
+      .default('#ffffff'),
+    sendIcon: z.enum(['arrow_up', 'arrow_right', 'send_plane']).default('arrow_up'),
+    sendShape: z.enum(['square', 'rounded', 'circle']).default('rounded'),
+    sendFill: z.enum(['solid', 'outline', 'ghost']).default('solid'),
+    sendIconColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{3,8}$/)
+      .default('#ffffff'),
+    placeholder: z.string().max(80).default('Type your message…'),
     width: z.number().int().min(300).max(600).default(400),
     height: z.number().int().min(400).max(800).default(540),
+    /**
+     * Optional origin allowlist. When non-empty, the public-token route
+     * and chat endpoints reject requests whose Origin/Referer does NOT
+     * match one of these. Empty array = no restriction (back-compat).
+     * Format: each entry is an origin like "https://hope-sthlm.com" or
+     * a wildcard "*.example.com" (host only, scheme implied).
+     */
+    allowedOrigins: z.array(z.string().max(200)).max(20).default([]),
   }),
 });
 
@@ -134,6 +202,11 @@ export interface AssistantRecord {
   shop: string;
   name: string;
   isDefault: boolean;
+  /** Whether the public widget endpoint will hand out tokens for this id. */
+  published: boolean;
+  /** Current signing epoch. Tokens carry the epoch they were minted under;
+   * bumping invalidates them. */
+  tokenEpoch: number;
   config: AssistantConfig;
   createdAt: Date;
   updatedAt: Date;
@@ -147,7 +220,6 @@ export interface PublicAssistantConfig {
   agent: {
     name: string;
     greeting: string;
-    thinkingVerbs: string[];
     errorPhrases: AssistantConfig['agent']['errorPhrases'];
   };
 }
@@ -161,7 +233,6 @@ export function toPublicConfig(a: AssistantRecord): PublicAssistantConfig {
     agent: {
       name: a.config.agent.name,
       greeting: a.config.agent.greeting,
-      thinkingVerbs: a.config.agent.thinkingVerbs,
       errorPhrases: a.config.agent.errorPhrases,
     },
   };
@@ -182,6 +253,8 @@ function parseRow(row: {
   shop: string;
   name: string;
   isDefault: boolean;
+  published: boolean;
+  tokenEpoch: number;
   config: string;
   createdAt: Date;
   updatedAt: Date;
@@ -198,6 +271,8 @@ function parseRow(row: {
     shop: row.shop,
     name: row.name,
     isDefault: row.isDefault,
+    published: row.published,
+    tokenEpoch: row.tokenEpoch,
     config,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -265,9 +340,9 @@ export async function createAssistant(input: CreateInput): Promise<AssistantReco
 
 export async function updateAssistant(
   id: string,
-  patch: { name?: string; config?: unknown },
+  patch: { name?: string; config?: unknown; published?: boolean },
 ): Promise<AssistantRecord> {
-  const data: { name?: string; config?: string } = {};
+  const data: { name?: string; config?: string; published?: boolean } = {};
   if (patch.name !== undefined) {
     data.name = patch.name.trim().slice(0, 80) || 'Untitled';
   }
@@ -275,7 +350,24 @@ export async function updateAssistant(
     const validated = AssistantConfigSchema.parse(patch.config);
     data.config = JSON.stringify(validated);
   }
+  if (patch.published !== undefined) {
+    data.published = patch.published;
+  }
   const row = await prisma.assistant.update({ where: { id }, data });
+  return parseRow(row);
+}
+
+/**
+ * Bumps tokenEpoch. Every outstanding widget token for this assistant
+ * becomes invalid on the next request — they were minted under the
+ * previous epoch, and the chat endpoint compares the token's ep to
+ * the assistant's current tokenEpoch.
+ */
+export async function bumpTokenEpoch(id: string): Promise<AssistantRecord> {
+  const row = await prisma.assistant.update({
+    where: { id },
+    data: { tokenEpoch: { increment: 1 } },
+  });
   return parseRow(row);
 }
 

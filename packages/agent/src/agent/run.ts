@@ -29,6 +29,10 @@ export interface AgentRunResult {
   text: string;
   toolCalls: ToolCallRecord[];
   messages: ModelMessage[];
+  /** Total tokens (input + output) consumed for this run, when the
+   * provider reports them. Used by callers to enforce per-tenant spend
+   * caps; undefined for providers that don't surface usage. */
+  totalTokens?: number;
 }
 
 function toInputMessages(messages: ModelMessage[]): InputMessage[] {
@@ -69,5 +73,16 @@ export async function runAgent(input: AgentRunInput): Promise<AgentRunResult> {
     text: result.text,
     toolCalls,
     messages: [...input.messages, ...result.response.messages],
+    totalTokens: extractTotalTokens(result.usage),
   };
+}
+
+function extractTotalTokens(usage: unknown): number | undefined {
+  if (!usage || typeof usage !== 'object') return undefined;
+  const u = usage as { totalTokens?: number; inputTokens?: number; outputTokens?: number };
+  if (typeof u.totalTokens === 'number') return u.totalTokens;
+  if (typeof u.inputTokens === 'number' && typeof u.outputTokens === 'number') {
+    return u.inputTokens + u.outputTokens;
+  }
+  return undefined;
 }

@@ -21,6 +21,9 @@ import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { PrismaVerificationStore } from '../lib/verification-store.ts';
 import { getAssistant, loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
 import { searchKnowledge } from '../lib/knowledge.ts';
+import { getHandoffSender } from '../lib/handoff-sender.ts';
+import { isOriginAllowed } from '../lib/origin-allowlist.ts';
+import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
 
 /**
  * Streaming chat endpoint. Emits the AI SDK UI message stream protocol so
@@ -45,6 +48,11 @@ function corsHeaders(origin: string | null): HeadersInit {
     'Access-Control-Allow-Origin': origin ?? '*',
     'Access-Control-Allow-Methods': ALLOWED_METHODS,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    // X-Conversation-Id is the canonical session id we set on streamed
+    // responses; the widget needs JS access to it to persist resumption
+    // across page loads. Browsers hide non-safelisted headers from
+    // cross-origin JS unless we list them here.
+    'Access-Control-Expose-Headers': 'X-Conversation-Id',
     Vary: 'Origin',
   };
 }
@@ -104,6 +112,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const shop = verified.shop;
   const tokenAssistantId = verified.assistantId;
+  const tokenEpoch = verified.epoch;
+
+  // Per-shop daily LLM spend cap. Same backstop as /api/chat.
+  const spend = await checkSpendCap(shop);
+  if (!spend.ok) {
+    return jsonError(503, { error: 'spend_cap_reached', used: spend.used, cap: spend.cap }, cors);
+  }
 
   const decision = takeToken(getClientIp(request), RATE_LIMIT);
   if (!decision.allowed) {
@@ -185,6 +200,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonError(404, { error: 'assistant_not_found' }, cors);
   }
 
+  // Same revocation + origin checks as /api/chat. See that file for
+  // commentary; keeping them here too so this route isn't a back door.
+  if (tokenEpoch !== undefined ? tokenEpoch !== assistant.tokenEpoch : assistant.tokenEpoch > 1) {
+    return jsonError(401, { error: 'token_revoked' }, cors);
+  }
+  if (
+    !isOriginAllowed(
+      request.headers.get('Origin'),
+      request.headers.get('Referer'),
+      assistant.config.widget.allowedOrigins,
+    )
+  ) {
+    return jsonError(403, { error: 'origin_not_allowed' }, cors);
+  }
+
   const promptContext: SystemPromptContext = {
     tenantName:
       assistant.config.business.companyName?.trim() ||
@@ -209,6 +239,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   };
 
+  // Count customer turns so far (prior history + this incoming message).
+  // The handoff tool uses this to refuse escalation on a one-line first
+  // message — see RuntimeContext.userTurnCount in @nordic-support/agent.
+  const priorUserTurns = convo.messages.filter((m) => m.role === 'user').length;
+  const userTurnCount = priorUserTurns + 1;
+
   const runtime: RuntimeContext = {
     conversationId: convo.id,
     verifiedEmail: convo.verifiedEmail,
@@ -216,7 +252,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     emailSender: new ConsoleEmailSender(),
     knowledgeSearch: async (q) => {
       const rows = await searchKnowledge(shop, assistant.id, q);
-      return rows.map((r) => ({ content: r.content, source: r.filename, score: r.score }));
+      return rows.map((r) => ({
+        content: r.content,
+        source: r.filename,
+        sourceUrl: r.sourceUrl,
+        score: r.score,
+      }));
+    },
+    userTurnCount,
+    agentName: assistant.config.agent.name,
+    handoffSender: getHandoffSender(),
+    handoff: {
+      destinationEmail: assistant.config.agent.handoffEmail,
+      subjectTemplate: assistant.config.agent.handoffSubjectTemplate,
+      bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
   };
 
@@ -228,7 +277,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       messages: promptMessages,
       context: promptContext,
       runtime,
-      onFinish: async ({ text, toolCalls }) => {
+      onFinish: async ({ text, toolCalls, totalTokens }) => {
         // Persist verification first so the next turn sees it.
         const verifySuccess = toolCalls.find(
           (c) =>
@@ -242,6 +291,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           if (email) await markConversationVerified(conversationId, email);
         }
         await appendTurns(conversationId, userMessage, text);
+        if (typeof totalTokens === 'number') {
+          await recordTokens(shop, totalTokens);
+        }
       },
     });
 
@@ -264,4 +316,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     return jsonError(500, { error: (err as Error).message }, cors);
   }
+};
+
+// React Router routes OPTIONS to the loader. Without one, preflight from
+// third-party origins (storefront widgets, test pages) 405s before the
+// browser ever tries POSTing.
+export const loader = ({ request }: { request: Request }) => {
+  const cors = corsHeaders(request.headers.get('Origin'));
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
+  return new Response(JSON.stringify({ error: 'POST only' }), {
+    status: 405,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
 };

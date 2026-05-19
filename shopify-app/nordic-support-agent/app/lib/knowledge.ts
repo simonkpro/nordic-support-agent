@@ -25,6 +25,10 @@ interface IngestInput {
    * across every assistant in the shop.
    */
   assistantId?: string | null;
+  /** Page URL when this doc came from a sitemap crawl (citable link). */
+  sourceUrl?: string | null;
+  /** Sitemap `<lastmod>` to skip unchanged pages on re-crawl. */
+  lastmod?: Date | null;
 }
 
 /**
@@ -80,6 +84,8 @@ export async function ingestDocument(input: IngestInput): Promise<{ documentId: 
       mimeType: input.mimeType,
       sizeBytes: input.bytes.byteLength,
       status: 'ingesting',
+      sourceUrl: input.sourceUrl ?? null,
+      lastmod: input.lastmod ?? null,
     },
   });
 
@@ -132,6 +138,8 @@ export async function ingestDocument(input: IngestInput): Promise<{ documentId: 
 export interface KnowledgeSearchResult {
   content: string;
   filename: string;
+  /** Set when the chunk came from a crawled web page; agent uses it to cite/link. */
+  sourceUrl?: string | null;
   score: number;
 }
 
@@ -166,11 +174,12 @@ export async function searchKnowledge(
   // because the embedding column isn't representable in Prisma's query
   // builder. Coalescing the active id lets us bind a single parameter.
   const rows = await prisma.$queryRaw<
-    Array<{ content: string; filename: string; score: number }>
+    Array<{ content: string; filename: string; sourceUrl: string | null; score: number }>
   >`
     SELECT
       c.content,
       d.filename,
+      d."sourceUrl",
       1 - (c.embedding <=> ${literal}::vector) AS score
     FROM "KnowledgeChunk" c
     JOIN "KnowledgeDocument" d ON d.id = c."documentId"
@@ -196,9 +205,26 @@ export async function listDocuments(shop: string) {
       sizeBytes: true,
       status: true,
       error: true,
+      sourceUrl: true,
+      lastmod: true,
       createdAt: true,
       _count: { select: { chunks: true } },
     },
+  });
+}
+
+/**
+ * Look up an existing crawled page by its URL — used by the sitemap
+ * crawler to decide whether to skip (lastmod unchanged) or replace.
+ */
+export async function findDocumentBySourceUrl(
+  shop: string,
+  assistantId: string | null,
+  sourceUrl: string,
+) {
+  return prisma.knowledgeDocument.findFirst({
+    where: { shop, assistantId, sourceUrl },
+    select: { id: true, lastmod: true, status: true },
   });
 }
 

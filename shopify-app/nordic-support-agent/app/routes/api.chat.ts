@@ -19,6 +19,9 @@ import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { PrismaVerificationStore } from '../lib/verification-store.ts';
 import { getAssistant, loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
 import { searchKnowledge } from '../lib/knowledge.ts';
+import { getHandoffSender } from '../lib/handoff-sender.ts';
+import { isOriginAllowed } from '../lib/origin-allowlist.ts';
+import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
 
 const RATE_LIMIT = { capacity: 20, refillPerMinute: 20 };
 const ALLOWED_METHODS = 'POST, OPTIONS';
@@ -27,7 +30,7 @@ function corsHeaders(origin: string | null): HeadersInit {
   return {
     'Access-Control-Allow-Origin': origin ?? '*',
     'Access-Control-Allow-Methods': ALLOWED_METHODS,
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     Vary: 'Origin',
   };
 }
@@ -92,6 +95,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
   const shop = verified.shop;
   const tokenAssistantId = verified.assistantId;
+  const tokenEpoch = verified.epoch;
+
+  // Per-shop daily LLM spend cap. Cheap to check, expensive to skip —
+  // an IP-rotating attacker would otherwise burn the merchant's budget.
+  const spend = await checkSpendCap(shop);
+  if (!spend.ok) {
+    return new Response(
+      JSON.stringify({ error: 'spend_cap_reached', used: spend.used, cap: spend.cap }),
+      { status: 503, headers: { ...cors, 'Content-Type': 'application/json' } },
+    );
+  }
 
   const decision = takeToken(getClientIp(request), RATE_LIMIT);
   if (!decision.allowed) {
@@ -186,6 +200,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
+  // Token revocation check. If the token carries an epoch, it must match
+  // the assistant's current tokenEpoch. Legacy tokens (no epoch) are
+  // accepted unless the assistant has been bumped past 1 — once revoked,
+  // any token without an epoch is also invalid.
+  if (tokenEpoch !== undefined ? tokenEpoch !== assistant.tokenEpoch : assistant.tokenEpoch > 1) {
+    return new Response(
+      JSON.stringify({ error: 'token_revoked' }),
+      { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // Origin allowlist (if configured for this assistant).
+  if (
+    !isOriginAllowed(
+      request.headers.get('Origin'),
+      request.headers.get('Referer'),
+      assistant.config.widget.allowedOrigins,
+    )
+  ) {
+    return new Response(
+      JSON.stringify({ error: 'origin_not_allowed' }),
+      { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } },
+    );
+  }
+
   const promptContext: SystemPromptContext = {
     tenantName:
       assistant.config.business.companyName?.trim() ||
@@ -210,6 +249,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   };
 
+  const priorUserTurns = convo.messages.filter((m) => m.role === 'user').length;
+
   const runtime: RuntimeContext = {
     conversationId: convo.id,
     verifiedEmail: convo.verifiedEmail,
@@ -217,7 +258,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     emailSender: new ConsoleEmailSender(),
     knowledgeSearch: async (q) => {
       const rows = await searchKnowledge(shop, assistant.id, q);
-      return rows.map((r) => ({ content: r.content, source: r.filename, score: r.score }));
+      return rows.map((r) => ({
+        content: r.content,
+        source: r.filename,
+        sourceUrl: r.sourceUrl,
+        score: r.score,
+      }));
+    },
+    userTurnCount: priorUserTurns + 1,
+    agentName: assistant.config.agent.name,
+    handoffSender: getHandoffSender(),
+    handoff: {
+      destinationEmail: assistant.config.agent.handoffEmail,
+      subjectTemplate: assistant.config.agent.handoffSubjectTemplate,
+      bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
   };
 
@@ -241,6 +295,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (email) await markConversationVerified(convo.id, email);
     }
     await appendTurns(convo.id, body.message, result.text);
+    if (typeof result.totalTokens === 'number') {
+      await recordTokens(shop, result.totalTokens);
+    }
     return new Response(
       JSON.stringify({
         sessionId: convo.id,
@@ -263,8 +320,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-export const loader = () =>
-  new Response(JSON.stringify({ error: 'POST only' }), {
+// React Router routes OPTIONS (and any other non-mutating method) to the
+// loader, not the action. Handle CORS preflight here so cross-origin
+// widgets on third-party sites work.
+export const loader = ({ request }: { request: Request }) => {
+  const cors = corsHeaders(request.headers.get('Origin'));
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
+  return new Response(JSON.stringify({ error: 'POST only' }), {
     status: 405,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
+};

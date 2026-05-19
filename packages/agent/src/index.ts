@@ -30,7 +30,12 @@ export type {
   VerifyOutcome,
 } from './agent/verification.ts';
 export { buildTools } from './agent/tools.ts';
-export type { ToolCallRecord } from './agent/tools.ts';
+export type {
+  ToolCallRecord,
+  HandoffPayload,
+  HandoffSender,
+  HandoffSendResult,
+} from './agent/tools.ts';
 export { buildSystemPrompt } from './agent/system-prompt.ts';
 export type { SystemPromptContext } from './agent/system-prompt.ts';
 export type * from './agent/types.ts';

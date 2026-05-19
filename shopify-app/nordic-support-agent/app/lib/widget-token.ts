@@ -23,6 +23,11 @@ interface TokenPayload {
    * server uses the shop's default assistant. Allows the merchant to
    * embed different widgets on different pages (one per assistant). */
   aid?: string;
+  /** Signing epoch the token was minted under. The chat endpoint
+   * compares this to the assistant's current tokenEpoch and rejects
+   * mismatches. Lets a merchant revoke all outstanding tokens for one
+   * assistant without rotating WIDGET_TOKEN_SECRET. */
+  ep?: number;
 }
 
 function getSecret(): Buffer {
@@ -51,6 +56,9 @@ export interface SignOptions {
   /** Bind this token to a specific assistant. Omit to let the server
    * route to the shop's default. */
   assistantId?: string;
+  /** Signing epoch — embed the assistant's current tokenEpoch so the
+   * chat endpoint can reject tokens minted before a revoke. */
+  epoch?: number;
 }
 
 export function signWidgetToken(shop: string, options: SignOptions = {}): string {
@@ -64,6 +72,7 @@ export function signWidgetToken(shop: string, options: SignOptions = {}): string
     exp: now + (options.ttlSeconds ?? DEFAULT_TTL_SECONDS),
   };
   if (options.assistantId) payload.aid = options.assistantId;
+  if (typeof options.epoch === 'number') payload.ep = options.epoch;
   const encodedPayload = base64url(JSON.stringify(payload));
   const sig = createHmac('sha256', getSecret()).update(encodedPayload).digest();
   return `${encodedPayload}.${base64url(sig)}`;
@@ -73,6 +82,10 @@ export interface VerifyResult {
   ok: boolean;
   shop?: string;
   assistantId?: string;
+  /** Epoch the token was minted under. Caller compares against the
+   * assistant's current tokenEpoch. Undefined for legacy tokens minted
+   * before this field existed — caller should treat as "no epoch". */
+  epoch?: number;
   reason?: 'malformed' | 'bad_signature' | 'expired';
 }
 
@@ -111,5 +124,6 @@ export function verifyWidgetToken(token: string): VerifyResult {
     ok: true,
     shop: payload.shop,
     ...(payload.aid ? { assistantId: payload.aid } : {}),
+    ...(typeof payload.ep === 'number' ? { epoch: payload.ep } : {}),
   };
 }

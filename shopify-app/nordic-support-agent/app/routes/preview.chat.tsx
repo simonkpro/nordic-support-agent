@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { useFetcher, useLoaderData, useRevalidator, useSearchParams } from 'react-router';
 import { createConversation } from '../lib/conversations.ts';
 import {
+  bumpTokenEpoch,
   createAssistant,
   deleteAssistant,
   getAssistant,
@@ -48,6 +49,7 @@ interface DocumentRow {
   sizeBytes: number;
   status: string;
   error: string | null;
+  sourceUrl: string | null;
   createdAt: string;
   chunkCount: number;
 }
@@ -61,9 +63,25 @@ interface AssistantSummary {
 interface LoaderData {
   widgetToken: string;
   conversationId: string;
-  active: { id: string; name: string; isDefault: boolean; config: AssistantConfig };
+  /** This server's public origin — used to build the install snippet. */
+  origin: string;
+  active: {
+    id: string;
+    name: string;
+    isDefault: boolean;
+    published: boolean;
+    tokenEpoch: number;
+    config: AssistantConfig;
+  };
   assistants: AssistantSummary[];
   documents: DocumentRow[];
+}
+
+function buildOrigin(request: Request, url: URL): string {
+  const fwdProto = request.headers.get('X-Forwarded-Proto');
+  const fwdHost = request.headers.get('X-Forwarded-Host') ?? request.headers.get('Host');
+  if (fwdProto && fwdHost) return `${fwdProto}://${fwdHost}`;
+  return url.origin;
 }
 
 async function pickActive(requestedId: string | null): Promise<AssistantRecord> {
@@ -83,14 +101,28 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
     country: active.config.country,
     verifiedEmail: null,
   });
-  const docs = await listDocuments(PREVIEW_SHOP);
+  // Scope the doc list to what this assistant can actually see at retrieval
+  // time: its own docs + shared (assistantId === null). Other assistants'
+  // private docs would only confuse the merchant.
+  const docs = (await listDocuments(PREVIEW_SHOP)).filter(
+    (d) => d.assistantId === null || d.assistantId === active.id,
+  );
   return {
-    widgetToken: signWidgetToken(PREVIEW_SHOP, { assistantId: active.id }),
+    widgetToken: signWidgetToken(PREVIEW_SHOP, {
+      assistantId: active.id,
+      epoch: active.tokenEpoch,
+    }),
     conversationId: convo.id,
+    // Honor proxy headers — tunnels and Vercel terminate TLS upstream so
+    // url.origin would otherwise be http:// in dev, producing a broken
+    // install snippet.
+    origin: buildOrigin(request, url),
     active: {
       id: active.id,
       name: active.name,
       isDefault: active.isDefault,
+      published: active.published,
+      tokenEpoch: active.tokenEpoch,
       config: active.config,
     },
     assistants: all.map((a) => ({ id: a.id, name: a.name, isDefault: a.isDefault })),
@@ -101,6 +133,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
       sizeBytes: d.sizeBytes,
       status: d.status,
       error: d.error,
+      sourceUrl: d.sourceUrl,
       createdAt: d.createdAt.toISOString(),
       assistantId: d.assistantId,
       chunkCount: d._count.chunks,
@@ -163,6 +196,29 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
       return { ok: true, intent: 'set-default-assistant' };
     } catch (err) {
       return { ok: false, intent: 'set-default-assistant', error: (err as Error).message };
+    }
+  }
+
+  // --- security: publish toggle + token revocation ---
+  if (intent === 'toggle-published') {
+    const id = String(formData.get('id') ?? '');
+    const published = String(formData.get('published') ?? '') === 'true';
+    if (!id) return { ok: false, intent: 'toggle-published', error: 'missing id' };
+    try {
+      await updateAssistant(id, { published });
+      return { ok: true, intent: 'toggle-published' };
+    } catch (err) {
+      return { ok: false, intent: 'toggle-published', error: (err as Error).message };
+    }
+  }
+  if (intent === 'revoke-tokens') {
+    const id = String(formData.get('id') ?? '');
+    if (!id) return { ok: false, intent: 'revoke-tokens', error: 'missing id' };
+    try {
+      await bumpTokenEpoch(id);
+      return { ok: true, intent: 'revoke-tokens', message: 'Tokens revoked.' };
+    } catch (err) {
+      return { ok: false, intent: 'revoke-tokens', error: (err as Error).message };
     }
   }
 
@@ -254,6 +310,8 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
       description: formData.get('business.description') ?? '',
       physicalLocations,
       chatbotPurposes,
+      sitemapUrl: formData.get('business.sitemapUrl') ?? '',
+      sitemapExcludeGlobs: formData.get('business.sitemapExcludeGlobs') ?? undefined,
     },
     agent: {
       name: formData.get('agent.name') ?? undefined,
@@ -261,7 +319,6 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
       greeting: formData.get('agent.greeting') ?? '',
       signature: formData.get('agent.signature') ?? '',
       customRules: formData.get('agent.customRules') ?? '',
-      thinkingVerbs: parseStringArray(formData.get('agent.thinkingVerbs')),
       errorPhrases: {
         generic: formData.get('agent.errorPhrases.generic') ?? '',
         network: formData.get('agent.errorPhrases.network') ?? '',
@@ -270,14 +327,30 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
         tooManyTurns: formData.get('agent.errorPhrases.tooManyTurns') ?? '',
         unconfigured: formData.get('agent.errorPhrases.unconfigured') ?? '',
       },
+      handoffEmail: formData.get('agent.handoffEmail') ?? '',
+      handoffSubjectTemplate: formData.get('agent.handoffSubjectTemplate') ?? undefined,
+      handoffBodyTemplate: formData.get('agent.handoffBodyTemplate') ?? undefined,
       fewShotExamples,
     },
     widget: {
       primaryColor: formData.get('widget.primaryColor') ?? undefined,
       accentColor: formData.get('widget.accentColor') ?? undefined,
       iconStyle: formData.get('widget.iconStyle') ?? undefined,
+      launcherShape: formData.get('widget.launcherShape') ?? undefined,
+      launcherIconColor: formData.get('widget.launcherIconColor') ?? undefined,
+      sendIcon: formData.get('widget.sendIcon') ?? undefined,
+      sendShape: formData.get('widget.sendShape') ?? undefined,
+      sendFill: formData.get('widget.sendFill') ?? undefined,
+      sendIconColor: formData.get('widget.sendIconColor') ?? undefined,
+      placeholder: formData.get('widget.placeholder') ?? undefined,
       width: Number(formData.get('widget.width') ?? 400),
       height: Number(formData.get('widget.height') ?? 540),
+      // Newline-separated in the textarea; trim + drop empties before
+      // handing to Zod (which expects string[]).
+      allowedOrigins: String(formData.get('widget.allowedOrigins') ?? '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean),
     },
     language: formData.get('language') ?? undefined,
     country: formData.get('country') ?? undefined,
@@ -317,9 +390,15 @@ function PreviewBody({
   setSearchParams: ReturnType<typeof useSearchParams>[1];
   revalidator: ReturnType<typeof useRevalidator>;
 }) {
-  const { widgetToken, conversationId, active, assistants, documents } = data;
+  const { widgetToken, conversationId, origin, active, assistants, documents } = data;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [chosenFile, setChosenFile] = useState<File | null>(null);
+
+  // Accordion — one section open at a time. Default: business (Step 1).
+  type SectionKey = 'active' | 'business' | 'agent' | 'widget' | 'kb' | 'install';
+  const [openSection, setOpenSection] = useState<SectionKey>('business');
+  const toggle = (k: SectionKey) =>
+    setOpenSection((cur) => (cur === k ? ('' as SectionKey) : k));
 
   // === Step 1: business ===
   const [companyName, setCompanyName] = useState(active.config.business.companyName);
@@ -338,6 +417,25 @@ function PreviewBody({
   const [purposes, setPurposes] = useState<AssistantConfig['business']['chatbotPurposes']>(
     active.config.business.chatbotPurposes,
   );
+  const [sitemapUrl, setSitemapUrl] = useState(active.config.business.sitemapUrl);
+  const [sitemapExcludeGlobs, setSitemapExcludeGlobs] = useState(
+    active.config.business.sitemapExcludeGlobs,
+  );
+  const [crawling, setCrawling] = useState(false);
+  const [crawlReport, setCrawlReport] = useState<null | {
+    ok: boolean;
+    error?: string;
+    report?: {
+      fetchedSitemapUrls: number;
+      candidatePages: number;
+      skippedByGlob: number;
+      skippedUnchanged: number;
+      ingested: number;
+      failed: number;
+      removedNowExcluded: number;
+      errors: Array<{ url: string; error: string }>;
+    };
+  }>(null);
 
   // === Step 2: agent ===
   const [agentName, setAgentName] = useState(active.config.agent.name);
@@ -348,16 +446,20 @@ function PreviewBody({
   const [agentSignature, setAgentSignature] = useState(active.config.agent.signature);
   const [agentRules, setAgentRules] = useState(active.config.agent.customRules);
   const [examples, setExamples] = useState<FewShotExample[]>(active.config.agent.fewShotExamples);
-  // Thinking verbs / error phrases as multi-line text (one per line) for easy editing.
-  const [thinkingVerbsText, setThinkingVerbsText] = useState(
-    active.config.agent.thinkingVerbs.join('\n'),
-  );
+  // Error phrases as multi-line text (one per line) for easy editing.
   const [errorGeneric, setErrorGeneric] = useState(active.config.agent.errorPhrases.generic);
   const [errorNetwork, setErrorNetwork] = useState(active.config.agent.errorPhrases.network);
   const [errorRateLimit, setErrorRateLimit] = useState(active.config.agent.errorPhrases.rateLimit);
   const [errorTooLong, setErrorTooLong] = useState(active.config.agent.errorPhrases.tooLong);
   const [errorTooManyTurns, setErrorTooManyTurns] = useState(active.config.agent.errorPhrases.tooManyTurns);
   const [errorUnconfigured, setErrorUnconfigured] = useState(active.config.agent.errorPhrases.unconfigured);
+  const [handoffEmail, setHandoffEmail] = useState(active.config.agent.handoffEmail);
+  const [handoffSubjectTemplate, setHandoffSubjectTemplate] = useState(
+    active.config.agent.handoffSubjectTemplate,
+  );
+  const [handoffBodyTemplate, setHandoffBodyTemplate] = useState(
+    active.config.agent.handoffBodyTemplate,
+  );
   const [language, setLanguage] = useState(active.config.language);
   const [country, setCountry] = useState(active.config.country);
 
@@ -367,8 +469,28 @@ function PreviewBody({
   const [iconStyle, setIconStyle] = useState<AssistantConfig['widget']['iconStyle']>(
     active.config.widget.iconStyle,
   );
+  const [launcherShape, setLauncherShape] = useState<AssistantConfig['widget']['launcherShape']>(
+    active.config.widget.launcherShape,
+  );
+  const [launcherIconColor, setLauncherIconColor] = useState(
+    active.config.widget.launcherIconColor,
+  );
+  const [sendIcon, setSendIcon] = useState<AssistantConfig['widget']['sendIcon']>(
+    active.config.widget.sendIcon,
+  );
+  const [sendShape, setSendShape] = useState<AssistantConfig['widget']['sendShape']>(
+    active.config.widget.sendShape,
+  );
+  const [sendFill, setSendFill] = useState<AssistantConfig['widget']['sendFill']>(
+    active.config.widget.sendFill,
+  );
+  const [sendIconColor, setSendIconColor] = useState(active.config.widget.sendIconColor);
+  const [placeholder, setPlaceholder] = useState(active.config.widget.placeholder);
   const [widgetWidth, setWidgetWidth] = useState(active.config.widget.width);
   const [widgetHeight, setWidgetHeight] = useState(active.config.widget.height);
+  const [allowedOrigins, setAllowedOrigins] = useState(
+    active.config.widget.allowedOrigins.join('\n'),
+  );
 
   // Assistant rename
   const [renameValue, setRenameValue] = useState(active.name);
@@ -419,27 +541,23 @@ function PreviewBody({
       JSON.stringify(locations.filter((l) => l.name.trim())),
     );
     form.set('business.chatbotPurposes', JSON.stringify(purposes));
+    form.set('business.sitemapUrl', sitemapUrl);
+    form.set('business.sitemapExcludeGlobs', sitemapExcludeGlobs);
     // Agent — Step 2
     form.set('agent.name', agentName);
     form.set('agent.tone', agentTone);
     form.set('agent.greeting', agentGreeting);
     form.set('agent.signature', agentSignature);
     form.set('agent.customRules', agentRules);
-    form.set(
-      'agent.thinkingVerbs',
-      JSON.stringify(
-        thinkingVerbsText
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean),
-      ),
-    );
     form.set('agent.errorPhrases.generic', errorGeneric);
     form.set('agent.errorPhrases.network', errorNetwork);
     form.set('agent.errorPhrases.rateLimit', errorRateLimit);
     form.set('agent.errorPhrases.tooLong', errorTooLong);
     form.set('agent.errorPhrases.tooManyTurns', errorTooManyTurns);
     form.set('agent.errorPhrases.unconfigured', errorUnconfigured);
+    form.set('agent.handoffEmail', handoffEmail);
+    form.set('agent.handoffSubjectTemplate', handoffSubjectTemplate);
+    form.set('agent.handoffBodyTemplate', handoffBodyTemplate);
     form.set(
       'agent.fewShotExamples',
       JSON.stringify(examples.filter((e) => e.user.trim() && e.assistant.trim())),
@@ -450,14 +568,49 @@ function PreviewBody({
     form.set('widget.primaryColor', primaryColor);
     form.set('widget.accentColor', accentColor);
     form.set('widget.iconStyle', iconStyle);
+    form.set('widget.launcherShape', launcherShape);
+    form.set('widget.launcherIconColor', launcherIconColor);
+    form.set('widget.sendIcon', sendIcon);
+    form.set('widget.sendShape', sendShape);
+    form.set('widget.sendFill', sendFill);
+    form.set('widget.sendIconColor', sendIconColor);
+    form.set('widget.placeholder', placeholder);
     form.set('widget.width', String(widgetWidth));
     form.set('widget.height', String(widgetHeight));
+    form.set('widget.allowedOrigins', allowedOrigins);
     return form;
   }
 
   const save = () => {
     setRestartAfterSave(false);
     fetcher.submit(buildSettingsForm(), { method: 'POST' });
+  };
+
+  // Saves first (so any sitemap URL edits land), then POSTs the crawl
+  // request and surfaces the resulting report inline.
+  const crawlNow = async () => {
+    if (!sitemapUrl.trim()) return;
+    setCrawlReport(null);
+    setCrawling(true);
+    try {
+      // Persist any pending edits to the assistant config first.
+      const saveForm = buildSettingsForm();
+      await fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        body: saveForm,
+      });
+      const fd = new FormData();
+      fd.set('assistantId', active.id);
+      const res = await fetch('/api/crawl-sitemap', { method: 'POST', body: fd });
+      const data = (await res.json()) as typeof crawlReport;
+      setCrawlReport(data);
+      // Refresh the doc list so newly ingested pages show up.
+      revalidator.revalidate();
+    } catch (err) {
+      setCrawlReport({ ok: false, error: (err as Error).message });
+    } finally {
+      setCrawling(false);
+    }
   };
   const saveAndRestart = () => {
     setRestartAfterSave(true);
@@ -543,9 +696,9 @@ function PreviewBody({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(360px, 460px) 1fr',
+          gridTemplateColumns: 'minmax(360px, 420px) 1fr',
           gap: 24,
-          maxWidth: 1280,
+          maxWidth: 1680,
           margin: '0 auto',
           alignItems: 'start',
         }}
@@ -562,8 +715,14 @@ function PreviewBody({
           }}
         >
           {/* Assistant selector — matches the rest of the panel's light theme. */}
-          <h2 style={{ ...sectionH2, marginTop: 0 }}>Active assistant</h2>
-
+          <SectionHeader
+            label="Active assistant"
+            open={openSection === 'active'}
+            onClick={() => toggle('active')}
+            first
+          />
+          {openSection === 'active' && (
+          <>
           <Field label="Switch assistant">
             <div style={{ display: 'flex', gap: 8 }}>
               <select
@@ -613,9 +772,17 @@ function PreviewBody({
             </button>
           </div>
 
-          {/* ===== Step 1: Företagsinformation ===== */}
-          <h2 style={sectionH2}>1. Företagsinformation</h2>
+          </>
+          )}
 
+          {/* ===== Step 1: Företagsinformation ===== */}
+          <SectionHeader
+            label="1. Företagsinformation"
+            open={openSection === 'business'}
+            onClick={() => toggle('business')}
+          />
+          {openSection === 'business' && (
+          <>
           <Field label="Företagets namn">
             <input
               type="text"
@@ -820,9 +987,17 @@ function PreviewBody({
             </div>
           </Field>
 
-          {/* ===== Step 2: Skräddarsy agent ===== */}
-          <h2 style={sectionH2}>2. Skräddarsy agent</h2>
+          </>
+          )}
 
+          {/* ===== Step 2: Skräddarsy agent ===== */}
+          <SectionHeader
+            label="2. Skräddarsy agent"
+            open={openSection === 'agent'}
+            onClick={() => toggle('agent')}
+          />
+          {openSection === 'agent' && (
+          <>
           <Field label="Namn">
             <input
               type="text"
@@ -904,21 +1079,6 @@ function PreviewBody({
               placeholder="- Diskutera aldrig prissättning.&#10;- Erbjud DEMO10 till nya kunder som frågar om frakt."
               style={{ ...inputStyle, fontFamily: 'inherit' }}
             />
-          </Field>
-
-          <Field label="Tänkande-fraser (en per rad, roterar slumpvis)">
-            <textarea
-              value={thinkingVerbsText}
-              rows={4}
-              onChange={(e) => setThinkingVerbsText(e.target.value)}
-              placeholder={'Funderar\nTänker\nSöker upp\nLetar upp dokument\nKnåpar'}
-              style={{ ...inputStyle, fontFamily: 'inherit' }}
-            />
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-              Visas medan agenten genererar svar. Tomma rader filtreras bort. Lämna helt
-              tomt för att använda standard ({active.config.agent.thinkingVerbs.length}{' '}
-              fraser).
-            </div>
           </Field>
 
           <Field label="Felmeddelanden (tomt = använd standard på valt språk)">
@@ -1032,9 +1192,55 @@ function PreviewBody({
             </div>
           </Field>
 
-          {/* ===== Step 3: Skräddarsy chattruta ===== */}
-          <h2 style={sectionH2}>3. Skräddarsy chattruta</h2>
+          <Field label="Eskalerings-e-post (skickas hit när agenten lämnar över till människa)">
+            <input
+              type="email"
+              value={handoffEmail}
+              onChange={(e) => setHandoffEmail(e.target.value)}
+              placeholder="support@example.com"
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              Tomt = ingen eskalering. Agenten kommer då hänvisa kunden till er
+              vanliga kontaktadress istället för att skapa ett ärende.
+            </div>
+          </Field>
 
+          <Field label="Ämnesrad för eskaleringsmejl">
+            <input
+              type="text"
+              value={handoffSubjectTemplate}
+              maxLength={200}
+              onChange={(e) => setHandoffSubjectTemplate(e.target.value)}
+              placeholder="[Support] {reason}: {summary_short}"
+              style={inputStyle}
+            />
+          </Field>
+
+          <Field label="Mejlmall (placeholders: {agentName}, {reason}, {summary}, {summary_short}, {conversationId}, {verifiedEmail})">
+            <textarea
+              value={handoffBodyTemplate}
+              rows={8}
+              onChange={(e) => setHandoffBodyTemplate(e.target.value)}
+              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              Okända placeholders lämnas oförändrade (lätt att felsöka). Mejl skickas
+              som ren text.
+            </div>
+          </Field>
+
+          </>
+          )}
+
+          {/* ===== Step 3: Skräddarsy chattruta ===== */}
+          <SectionHeader
+            label="3. Skräddarsy chattruta"
+            open={openSection === 'widget'}
+            onClick={() => toggle('widget')}
+          />
+          {openSection === 'widget' && (
+          <>
           <Field label="Primärfärg (header, bubbla, sänd-knapp) — live">
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <input
@@ -1069,7 +1275,7 @@ function PreviewBody({
             </div>
           </Field>
 
-          <Field label="Ikon">
+          <Field label="Launcher-ikon (minimerat läge)">
             <select
               value={iconStyle}
               onChange={(e) =>
@@ -1082,6 +1288,109 @@ function PreviewBody({
               <option value="sparkle">Glitter</option>
               <option value="help">Frågetecken</option>
             </select>
+          </Field>
+
+          <Field label="Launcher-form">
+            <select
+              value={launcherShape}
+              onChange={(e) =>
+                setLauncherShape(
+                  e.target.value as AssistantConfig['widget']['launcherShape'],
+                )
+              }
+              style={inputStyle}
+            >
+              <option value="circle">Cirkel (standard)</option>
+              <option value="rounded">Rundad kvadrat</option>
+              <option value="square">Skarp kvadrat</option>
+            </select>
+          </Field>
+
+          <Field label="Launcher-ikonens färg">
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={launcherIconColor}
+                onChange={(e) => setLauncherIconColor(e.target.value)}
+                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
+              />
+              <input
+                type="text"
+                value={launcherIconColor}
+                onChange={(e) => setLauncherIconColor(e.target.value)}
+                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
+              />
+            </div>
+          </Field>
+
+          <Field label="Placeholder i textfältet">
+            <input
+              type="text"
+              value={placeholder}
+              maxLength={80}
+              onChange={(e) => setPlaceholder(e.target.value)}
+              placeholder="Type your message…"
+              style={inputStyle}
+            />
+          </Field>
+
+          <Field label="Sänd-ikon">
+            <select
+              value={sendIcon}
+              onChange={(e) =>
+                setSendIcon(e.target.value as AssistantConfig['widget']['sendIcon'])
+              }
+              style={inputStyle}
+            >
+              <option value="arrow_up">Pil upp (standard)</option>
+              <option value="arrow_right">Pil höger</option>
+              <option value="send_plane">Pappersflygplan</option>
+            </select>
+          </Field>
+
+          <Field label="Sänd-knappens form">
+            <select
+              value={sendShape}
+              onChange={(e) =>
+                setSendShape(e.target.value as AssistantConfig['widget']['sendShape'])
+              }
+              style={inputStyle}
+            >
+              <option value="rounded">Rundad (standard)</option>
+              <option value="circle">Cirkel</option>
+              <option value="square">Skarp kvadrat</option>
+            </select>
+          </Field>
+
+          <Field label="Sänd-knappens fyllning">
+            <select
+              value={sendFill}
+              onChange={(e) =>
+                setSendFill(e.target.value as AssistantConfig['widget']['sendFill'])
+              }
+              style={inputStyle}
+            >
+              <option value="solid">Fylld (standard)</option>
+              <option value="outline">Endast kontur</option>
+              <option value="ghost">Genomskinlig</option>
+            </select>
+          </Field>
+
+          <Field label="Sänd-ikonens färg">
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={sendIconColor}
+                onChange={(e) => setSendIconColor(e.target.value)}
+                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
+              />
+              <input
+                type="text"
+                value={sendIconColor}
+                onChange={(e) => setSendIconColor(e.target.value)}
+                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
+              />
+            </div>
           </Field>
 
           <Field label={`Bredd: ${widgetWidth} px`}>
@@ -1108,7 +1417,116 @@ function PreviewBody({
             />
           </Field>
 
-          <h2 style={sectionH2}>Knowledge base ({documents.length})</h2>
+          </>
+          )}
+
+          <SectionHeader
+            label={`4. Kunskapskällor (${documents.length})`}
+            open={openSection === 'kb'}
+            onClick={() => toggle('kb')}
+          />
+          {openSection === 'kb' && (
+          <>
+          <h3 style={kbSubH}>Sitemap-indexering</h3>
+
+          <Field label="Sitemap-URL (för att indexera webbsidor som källor)">
+            <input
+              type="url"
+              value={sitemapUrl}
+              maxLength={500}
+              onChange={(e) => setSitemapUrl(e.target.value)}
+              placeholder="https://hopestockholm.com/sitemap.xml"
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              Vi hämtar varje sida, plockar huvudinnehållet och lägger till det i
+              kunskapsbasen — varje träff bär med sig sidans URL så agenten kan länka till källan.
+            </div>
+          </Field>
+
+          <Field label="Uteslut sökvägar (en glob per rad)">
+            <textarea
+              value={sitemapExcludeGlobs}
+              rows={4}
+              onChange={(e) => setSitemapExcludeGlobs(e.target.value)}
+              placeholder={'/cart\n/checkout\n/account/*\n/products/*'}
+              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              <code>*</code> = ett segment, <code>**</code> = vad som helst. Standard
+              skippar varukorg, kassa, kontosidor och produktsidor.
+            </div>
+          </Field>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={crawlNow}
+              disabled={crawling || !sitemapUrl.trim()}
+              style={primaryButtonStyle}
+            >
+              {crawling ? 'Hämtar…' : 'Hämta & indexera nu'}
+            </button>
+            {crawling && (
+              <span style={{ fontSize: 12, color: '#6b7280' }}>
+                Kan ta en stund för större sajter.
+              </span>
+            )}
+          </div>
+
+          {crawlReport && crawlReport.ok && crawlReport.report && (
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 8,
+                padding: 10,
+                fontSize: 12,
+                color: '#166534',
+                marginBottom: 12,
+              }}
+            >
+              Klar: <strong>{crawlReport.report.ingested}</strong> nya/uppdaterade,{' '}
+              <strong>{crawlReport.report.skippedUnchanged}</strong> oförändrade,{' '}
+              <strong>{crawlReport.report.skippedByGlob}</strong> uteslutna,{' '}
+              <strong>{crawlReport.report.failed}</strong> misslyckades (av{' '}
+              {crawlReport.report.fetchedSitemapUrls} URL:er i sitemap).
+              {crawlReport.report.removedNowExcluded > 0 && (
+                <> Tog bort <strong>{crawlReport.report.removedNowExcluded}</strong> tidigare indexerade sidor som nu uteslöts.</>
+              )}
+              {crawlReport.report.errors.length > 0 && (
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: 'pointer' }}>
+                    {crawlReport.report.errors.length} fel
+                  </summary>
+                  <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                    {crawlReport.report.errors.slice(0, 10).map((e, i) => (
+                      <li key={i} style={{ color: '#991b1b' }}>
+                        <code>{e.url}</code>: {e.error}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+          {crawlReport && !crawlReport.ok && (
+            <div
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 8,
+                padding: 10,
+                fontSize: 12,
+                color: '#991b1b',
+                marginBottom: 12,
+              }}
+            >
+              Kunde inte indexera: {crawlReport.error}
+            </div>
+          )}
+
+          <h3 style={kbSubH}>Ladda upp dokument</h3>
           <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
             PDF / Markdown / TXT, max 5 MB. Choose whether the doc is scoped to{' '}
             <strong>{active.name}</strong> only or shared with every assistant in the shop.
@@ -1223,7 +1641,25 @@ function PreviewBody({
                   {statusBadge(d.status)} · {d.chunkCount} chunks ·{' '}
                   {(d.sizeBytes / 1024).toFixed(1)} KB ·{' '}
                   {scopeLabel(d.assistantId, assistants, active.id)}
+                  {d.sourceUrl && ' · sitemap'}
                 </div>
+                {d.sourceUrl && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: '#2563eb',
+                      marginTop: 2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={d.sourceUrl}
+                  >
+                    <a href={d.sourceUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
+                      {d.sourceUrl}
+                    </a>
+                  </div>
+                )}
                 {d.error && (
                   <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>
                     {d.error}
@@ -1235,6 +1671,26 @@ function PreviewBody({
               </button>
             </div>
           ))}
+          </>
+          )}
+
+          <SectionHeader
+            label="5. Installation & säkerhet"
+            open={openSection === 'install'}
+            onClick={() => toggle('install')}
+          />
+          {openSection === 'install' && (
+            <>
+              <InstallSnippet origin={origin} assistantId={active.id} />
+              <InstallSecurity
+                assistantId={active.id}
+                published={active.published}
+                allowedOrigins={allowedOrigins}
+                onAllowedOriginsChange={setAllowedOrigins}
+                tokenEpoch={active.tokenEpoch}
+              />
+            </>
+          )}
 
           <div
             style={{
@@ -1268,41 +1724,15 @@ function PreviewBody({
         {/* === RIGHT: live chat preview === */}
         <div>
           <div
-            style={{
-              background: 'white',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              fontSize: 13,
-              color: '#6b7280',
-            }}
-          >
-            <strong style={{ color: '#111827', fontSize: 14 }}>
-              Chatting with: {active.name}
-              {active.isDefault && ' (default)'}
-            </strong>
-            <div style={{ marginTop: 4 }}>
-              Brand color updates instantly. Persona / tone / rules apply on the next
-              message after Save. Language / greeting / country need "Save & restart chat".
-              Switching assistants creates a fresh conversation.
-            </div>
-            <div style={{ marginTop: 4, fontSize: 11, color: '#9ca3af' }}>
-              session <code>{conversationId.slice(0, 8)}…</code> · assistant{' '}
-              <code>{active.id.slice(0, 8)}…</code>
-            </div>
-          </div>
-
-          <div
             ref={containerRef}
             style={
               {
                 position: 'relative',
-                // The container is sized to fit the configured widget — so
-                // the merchant sees exactly the dimensions a customer would.
-                width: widgetWidth + 40,
-                height: widgetHeight + 100,
-                minHeight: widgetHeight + 100,
+                // Fixed-size "viewport" — simulates a storefront page corner.
+                // The launcher pins to bottom-right; the modal sizes itself
+                // independently from the configured widget width/height.
+                width: '100%',
+                height: 'calc(100vh - 80px)',
                 background: 'white',
                 borderRadius: 12,
                 overflow: 'hidden',
@@ -1325,11 +1755,15 @@ function PreviewBody({
                   defaultOpen
                   width={widgetWidth}
                   height={widgetHeight}
-                  thinkingVerbs={thinkingVerbsText
-                    .split('\n')
-                    .map((s) => s.trim())
-                    .filter(Boolean)}
                   greeting={agentGreeting}
+                  iconStyle={iconStyle}
+                  launcherShape={launcherShape}
+                  launcherIconColor={launcherIconColor}
+                  placeholder={placeholder}
+                  sendIcon={sendIcon}
+                  sendShape={sendShape}
+                  sendFill={sendFill}
+                  sendIconColor={sendIconColor}
                 />
               </ChatRuntimeProvider>
             )}
@@ -1337,6 +1771,193 @@ function PreviewBody({
         </div>
       </div>
     </div>
+  );
+}
+
+function InstallSnippet({ origin, assistantId }: { origin: string; assistantId: string }) {
+  const snippet = `<script src="${origin}/widget.js" data-assistant="${assistantId}" async defer></script>`;
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(snippet).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {},
+    );
+  };
+  return (
+    <div style={{ marginTop: 4, marginBottom: 12 }}>
+      <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px 0', lineHeight: 1.45 }}>
+        Klistra in den här raden i sajtens <code style={{ fontSize: 11 }}>{'<head>'}</code> eller
+        precis innan <code style={{ fontSize: 11 }}>{'</body>'}</code>. Widgeten hämtar
+        en kortlivad publik token och konfigurationen automatiskt.
+      </p>
+      <pre
+        style={{
+          background: '#0f172a',
+          color: '#e2e8f0',
+          padding: 12,
+          borderRadius: 8,
+          fontSize: 12,
+          lineHeight: 1.5,
+          overflowX: 'auto',
+          whiteSpace: 'pre',
+          margin: 0,
+        }}
+      >
+        <code>{snippet}</code>
+      </pre>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <button type="button" onClick={copy} style={secondaryButtonStyle}>
+          {copied ? 'Kopierat' : 'Kopiera'}
+        </button>
+        <span style={{ fontSize: 11, color: '#9ca3af' }}>
+          Token-livslängd 24 h — widgeten förnyar automatiskt vid varje besök.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function InstallSecurity({
+  assistantId,
+  published,
+  allowedOrigins,
+  onAllowedOriginsChange,
+  tokenEpoch,
+}: {
+  assistantId: string;
+  published: boolean;
+  allowedOrigins: string;
+  onAllowedOriginsChange: (next: string) => void;
+  tokenEpoch: number;
+}) {
+  const fetcher = useFetcher<ActionResponse>();
+  const inFlight = fetcher.state !== 'idle';
+
+  const togglePublished = () => {
+    const fd = new FormData();
+    fd.set('intent', 'toggle-published');
+    fd.set('id', assistantId);
+    fd.set('published', String(!published));
+    fetcher.submit(fd, { method: 'post' });
+  };
+
+  const revoke = () => {
+    if (!confirm('Återkalla alla widget-tokens för denna assistent? Befintliga installationer hämtar nya automatiskt vid nästa sidladdning.')) {
+      return;
+    }
+    const fd = new FormData();
+    fd.set('intent', 'revoke-tokens');
+    fd.set('id', assistantId);
+    fetcher.submit(fd, { method: 'post' });
+  };
+
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: '#374151' };
+  const helpStyle: React.CSSProperties = { fontSize: 11, color: '#6b7280', margin: '4px 0 8px 0' };
+
+  return (
+    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={published} onChange={togglePublished} disabled={inFlight} />
+          <span style={labelStyle}>Publicerad</span>
+        </label>
+        <p style={helpStyle}>
+          Avpublicera för att tillfälligt blockera den publika tokenslutpunkten — befintliga
+          tokens fortsätter fungera tills de förnyas eller återkallas.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="allowedOrigins" style={labelStyle}>
+          Tillåtna domäner
+        </label>
+        <p style={helpStyle}>
+          En per rad. Tom = alla domäner (rekommenderas bara under utveckling).
+          Exempel: <code style={{ fontSize: 11 }}>hope-sthlm.com</code>,{' '}
+          <code style={{ fontSize: 11 }}>*.hope-sthlm.com</code>,{' '}
+          <code style={{ fontSize: 11 }}>https://shop.example.com</code>.
+        </p>
+        <textarea
+          id="allowedOrigins"
+          value={allowedOrigins}
+          onChange={(e) => onAllowedOriginsChange(e.target.value)}
+          rows={4}
+          spellCheck={false}
+          placeholder="hope-sthlm.com&#10;*.hope-sthlm.com"
+          style={{
+            width: '100%',
+            minHeight: 80,
+            padding: 8,
+            fontSize: 12,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            border: '1px solid #d1d5db',
+            borderRadius: 6,
+            resize: 'vertical',
+          }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Återkalla widget-tokens</label>
+        <p style={helpStyle}>
+          Aktuell epok: <strong>{tokenEpoch}</strong>. Klicka för att invalidera alla
+          tokens som minted innan nu. Tryggt vid läckage eller vid byte av domän.
+        </p>
+        <button type="button" onClick={revoke} disabled={inFlight} style={secondaryButtonStyle}>
+          {inFlight && fetcher.formData?.get('intent') === 'revoke-tokens'
+            ? 'Återkallar…'
+            : 'Återkalla alla tokens'}
+        </button>
+        {fetcher.data?.intent === 'revoke-tokens' && fetcher.data.ok && (
+          <span style={{ marginLeft: 8, fontSize: 12, color: '#10b981' }}>Återkallade.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  label,
+  open,
+  onClick,
+  first,
+}: {
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  first?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        margin: first ? '0 0 12px' : '12px 0',
+        padding: '8px 0',
+        fontSize: 14,
+        fontWeight: 600,
+        color: '#111827',
+        background: 'transparent',
+        border: 'none',
+        borderBottom: '1px solid #e5e7eb',
+        cursor: 'pointer',
+        textAlign: 'left',
+      }}
+      aria-expanded={open}
+    >
+      <span>{label}</span>
+      <span style={{ fontSize: 12, color: '#6b7280', transition: 'transform 120ms', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+        ▶
+      </span>
+    </button>
   );
 }
 
@@ -1410,6 +2031,15 @@ const sectionH2: React.CSSProperties = {
   color: '#111827',
   paddingBottom: 6,
   borderBottom: '1px solid #e5e7eb',
+};
+
+const kbSubH: React.CSSProperties = {
+  margin: '12px 0 8px',
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#6b7280',
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
 };
 
 const inputStyle: React.CSSProperties = {

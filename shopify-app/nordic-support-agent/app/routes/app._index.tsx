@@ -27,7 +27,10 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   });
   // Sign a token bound to the default assistant — the embedded admin test
   // panel always exercises the default.
-  const widgetToken = signWidgetToken(session.shop, { assistantId: assistant.id });
+  const widgetToken = signWidgetToken(session.shop, {
+    assistantId: assistant.id,
+    epoch: assistant.tokenEpoch,
+  });
   const appUrl = process.env.SHOPIFY_APP_URL || '';
   return {
     apiUrl: appUrl ? `${appUrl}/api/chat/stream` : '/api/chat/stream',
