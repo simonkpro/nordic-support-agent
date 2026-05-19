@@ -182,8 +182,29 @@ export const AssistantConfigSchema = z.object({
       .regex(/^#[0-9a-fA-F]{3,8}$/)
       .default('#ffffff'),
     placeholder: z.string().max(80).default('Type your message…'),
-    width: z.number().int().min(300).max(600).default(400),
-    height: z.number().int().min(400).max(800).default(540),
+    width: z.number().int().min(300).max(600).default(380),
+    height: z.number().int().min(400).max(800).default(600),
+    /** Light / dark surface palette. Default light. */
+    theme: z.enum(['light', 'dark']).default('light'),
+    /** Panel shadow intensity. Default medium. */
+    shadow: z.enum(['none', 'subtle', 'medium', 'strong']).default('medium'),
+    /** Optional header subtitle, e.g. "Usually replies in a few minutes".
+     * Empty string → no subtitle line is rendered. */
+    subtitle: z.string().max(120).default(''),
+    /**
+     * Optional surface-color overrides. Each is empty by default — the
+     * widget falls back to the theme's resolved value. Setting any of
+     * these wins over the data-theme default. Format: 3-8 hex chars.
+     */
+    surfaces: z
+      .object({
+        bg: z.string().regex(/^(#[0-9a-fA-F]{3,8})?$/).default(''),
+        ink: z.string().regex(/^(#[0-9a-fA-F]{3,8})?$/).default(''),
+        bubbleInBg: z.string().regex(/^(#[0-9a-fA-F]{3,8})?$/).default(''),
+        bubbleInInk: z.string().regex(/^(#[0-9a-fA-F]{3,8})?$/).default(''),
+        inputBg: z.string().regex(/^(#[0-9a-fA-F]{3,8})?$/).default(''),
+      })
+      .default({}),
     /**
      * Optional origin allowlist. When non-empty, the public-token route
      * and chat endpoints reject requests whose Origin/Referer does NOT

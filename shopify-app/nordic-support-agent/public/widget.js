@@ -197,6 +197,8 @@
       errTooManyTurns: 'Konversationen har blivit lång. Starta en ny för att fortsätta.',
       charCount: '{n}/{max} tecken',
       privacyLabel: 'Sekretess & data',
+      todayLabel: 'Idag',
+      poweredBy: 'Drivs av',
     },
     en: {
       placeholder: 'Type your question…',
@@ -212,6 +214,8 @@
       errTooManyTurns: 'This conversation got long. Start a new one to continue.',
       charCount: '{n}/{max} characters',
       privacyLabel: 'Privacy & data',
+      todayLabel: 'Today',
+      poweredBy: 'Powered by',
     },
     no: {
       placeholder: 'Skriv spørsmålet ditt…',
@@ -227,6 +231,8 @@
       errTooManyTurns: 'Samtalen har blitt lang. Start en ny for å fortsette.',
       charCount: '{n}/{max} tegn',
       privacyLabel: 'Personvern & data',
+      todayLabel: 'I dag',
+      poweredBy: 'Drevet av',
     },
     da: {
       placeholder: 'Skriv dit spørgsmål…',
@@ -242,6 +248,8 @@
       errTooManyTurns: 'Samtalen er blevet lang. Start en ny for at fortsætte.',
       charCount: '{n}/{max} tegn',
       privacyLabel: 'Privatliv & data',
+      todayLabel: 'I dag',
+      poweredBy: 'Drevet af',
     },
     fi: {
       placeholder: 'Kirjoita kysymyksesi…',
@@ -257,6 +265,8 @@
       errTooManyTurns: 'Keskustelu venyi. Aloita uusi jatkaaksesi.',
       charCount: '{n}/{max} merkkiä',
       privacyLabel: 'Yksityisyys & tiedot',
+      todayLabel: 'Tänään',
+      poweredBy: 'Tuottaa',
     },
   };
 
@@ -332,17 +342,26 @@
 
     // === Widget appearance (from /api/widget-config -> remote.widget) ====
     var w = (remote && remote.widget) || {};
-    var ICON_STYLE = w.iconStyle || 'bot';
+    var ICON_STYLE = w.iconStyle || 'chat_bubble';
     var LAUNCHER_SHAPE = w.launcherShape || 'circle';
     var LAUNCHER_ICON_COLOR = w.launcherIconColor || '#ffffff';
     var SEND_ICON = w.sendIcon || 'arrow_up';
-    var SEND_SHAPE = w.sendShape || 'rounded';
+    var SEND_SHAPE = w.sendShape || 'circle';
     var SEND_FILL = w.sendFill || 'solid';
     var SEND_ICON_COLOR = w.sendIconColor || '#ffffff';
     var PLACEHOLDER =
       (w.placeholder && String(w.placeholder).trim()) || strings.placeholder;
-    var PANEL_W = typeof w.width === 'number' ? w.width : 360;
-    var PANEL_H = typeof w.height === 'number' ? w.height : 540;
+    var PANEL_W = typeof w.width === 'number' ? w.width : 380;
+    var PANEL_H = typeof w.height === 'number' ? w.height : 600;
+    var AVATAR_INITIAL = (BRAND_NAME || 'A').trim().charAt(0).toUpperCase() || 'A';
+    var SUBTITLE = (typeof w.subtitle === 'string' ? w.subtitle.trim() : '') || '';
+    var THEME = w.theme === 'dark' ? 'dark' : 'light';
+    var SHADOW = (w.shadow === 'none' || w.shadow === 'subtle' || w.shadow === 'strong')
+      ? w.shadow
+      : 'medium';
+    // Surface overrides — each empty string falls back to the theme default
+    // resolved in CSS. Anything truthy wins via inline style on .ns-root.
+    var SURFACES = (w.surfaces && typeof w.surfaces === 'object') ? w.surfaces : {};
 
     // SVG icon catalog — kept tiny and inline so the widget stays one file.
     var LAUNCHER_SVG = {
@@ -363,18 +382,6 @@
       send_plane:
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
     };
-    function shapeRadius(shape, max) {
-      // max = the value we'd use for a "fully rounded" effect at this size
-      if (shape === 'circle') return max;
-      if (shape === 'square') return '0';
-      return '8px'; // rounded
-    }
-    // Send button computed styles based on fill mode.
-    var sendBg = SEND_FILL === 'solid' ? BRAND_COLOR : 'transparent';
-    var sendBorder = SEND_FILL === 'outline' ? ('1px solid ' + SEND_ICON_COLOR) : 'none';
-    var sendHoverBg =
-      SEND_FILL === 'solid' ? BRAND_COLOR : hexToRgba(SEND_ICON_COLOR, 0.12);
-
     function t(key, vars) {
       var s = strings[key] || '';
       if (!vars) return s;
@@ -396,7 +403,6 @@
     try {
       sessionId = localStorage.getItem(STORAGE_KEY);
     } catch (_) {}
-    var messages = [];
     var sending = false;
     var open = false;
     // Greeting appears ~1s after the panel opens (set by the open handler).
@@ -404,69 +410,130 @@
     var greetingShown = false;
     var greetingTimer = null;
     var wasOver = false;
+    var firstOpenDone = false;
 
     // ---- Styles ----
+    // Tokenised, scoped under .ns-root. All visual customisation flows
+    // through CSS custom properties set as inline style on the root, and
+    // through data-* attributes for the discrete variants (shape, fill,
+    // theme, etc.). Mirrors the Claude Design handoff at /tmp/design-fetch.
     var STYLE = [
       // Defensive reset against host CSS bleed.
-      '.ns-root, .ns-root *, .ns-root *::before, .ns-root *::after { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.4; color: inherit; }',
-      '.ns-root input, .ns-root button, .ns-root textarea { background: transparent; border: none; padding: 0; font: inherit; color: inherit; width: auto; height: auto; min-width: 0; outline: none; vertical-align: middle; -webkit-appearance: none; appearance: none; }',
-      // Bubble (launcher)
-      '.ns-root .ns-bubble { position: fixed; right: 20px; bottom: 20px; width: 56px; height: 56px; border-radius: ' + shapeRadius(LAUNCHER_SHAPE, '50%') + '; background: ' + BRAND_COLOR + '; color: ' + LAUNCHER_ICON_COLOR + '; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; z-index: 2147483646; transition: transform 0.15s ease; }',
-      '.ns-root .ns-bubble:hover { transform: scale(1.05); }',
-      '.ns-root .ns-bubble.ns-hidden { display: none; }',
-      '.ns-root .ns-bubble svg { width: 24px; height: 24px; display: block; }',
-      // Panel (sized from per-assistant config)
-      '.ns-root .ns-panel { position: fixed; right: 20px; bottom: 20px; width: ' + PANEL_W + 'px; max-width: calc(100vw - 40px); height: ' + PANEL_H + 'px; max-height: calc(100vh - 40px); background: white; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); display: flex; flex-direction: column; overflow: hidden; z-index: 2147483647; }',
-      '.ns-root .ns-panel.ns-hidden { display: none; }',
-      // Header
-      '.ns-root .ns-header { background: ' + BRAND_COLOR + '; color: white; height: 48px; padding: 0 8px 0 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }',
-      '.ns-root .ns-header-title { font-weight: 600; font-size: 14px; line-height: 1; }',
-      '.ns-root .ns-icon-btn { width: 32px; height: 32px; padding: 0; background: transparent; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s ease; flex-shrink: 0; }',
-      '.ns-root .ns-icon-btn:hover { background: rgba(255,255,255,0.15); }',
-      '.ns-root .ns-icon-btn svg { width: 18px; height: 18px; display: block; }',
-      // Messages
-      '.ns-root .ns-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb; }',
-      '.ns-root .ns-msg { padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }',
-      '.ns-root .ns-msg.ns-user { align-self: flex-end; background: ' + BRAND_COLOR + '; color: white; border-bottom-right-radius: 4px; }',
-      '.ns-root .ns-msg.ns-assistant { align-self: flex-start; background: white; border: 1px solid #e5e7eb; color: #111827; border-bottom-left-radius: 4px; white-space: normal; }',
-      // Markdown inside assistant bubbles. Bold/italics intentionally not
-      // styled — the system prompt bans them. Lists are compact; links use
-      // an understated underline since the bubble is monochrome already.
-      '.ns-root .ns-msg.ns-assistant p { margin: 0 0 6px 0; }',
-      '.ns-root .ns-msg.ns-assistant p:last-child { margin-bottom: 0; }',
-      '.ns-root .ns-msg.ns-assistant ul, .ns-root .ns-msg.ns-assistant ol { margin: 4px 0 6px 0; padding-left: 18px; }',
-      '.ns-root .ns-msg.ns-assistant li { margin: 2px 0; }',
-      '.ns-root .ns-msg.ns-assistant a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }',
-      '.ns-root .ns-msg.ns-assistant a:hover { opacity: 0.8; }',
-      '.ns-root .ns-thinking { align-self: flex-start; color: #6b7280; font-size: 12px; padding: 4px 12px; }',
-      // Footer
-      '.ns-root .ns-footer { border-top: 1px solid #e5e7eb; background: white; flex-shrink: 0; }',
-      '.ns-root .ns-form { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }',
-      '.ns-root .ns-input { flex: 1 1 0; min-width: 0; width: auto; height: 40px; padding: 0 12px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; color: #111827; }',
-      '.ns-root .ns-input:focus { border-color: ' + BRAND_ACCENT + '; box-shadow: 0 0 0 3px ' + hexToRgba(BRAND_ACCENT, 0.10) + '; }',
-      '.ns-root .ns-input.ns-over { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.10); }',
-      '.ns-root .ns-send { width: 40px; height: 40px; flex-shrink: 0; padding: 0; background: ' + sendBg + '; color: ' + SEND_ICON_COLOR + '; border: ' + sendBorder + '; border-radius: ' + shapeRadius(SEND_SHAPE, '50%') + '; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.15s ease, background 0.15s ease; }',
-      '.ns-root .ns-send:hover:not(:disabled) { opacity: 0.9; background: ' + sendHoverBg + '; }',
-      '.ns-root .ns-send:disabled { opacity: 0.4; cursor: not-allowed; }',
-      '.ns-root .ns-send svg { width: 18px; height: 18px; display: block; }',
-      // Privacy link sits below the composer; small, muted, never competes
-      // with the send affordance. Hidden when we lack the assistantId
-      // (inline-token install path — merchant can still link to /privacy
-      // elsewhere on their site).
-      '.ns-root .ns-privacy { padding: 0 16px 8px 16px; font-size: 11px; text-align: right; }',
-      '.ns-root .ns-privacy a { color: #6b7280; text-decoration: none; }',
-      '.ns-root .ns-privacy a:hover { text-decoration: underline; color: #374151; }',
-      '.ns-root .ns-privacy.ns-hidden { display: none; }',
-      // Modal
-      '.ns-root .ns-modal-backdrop { position: absolute; inset: 0; background: rgba(17,24,39,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1; }',
-      '.ns-root .ns-modal-backdrop.ns-hidden { display: none; }',
-      '.ns-root .ns-modal { background: white; border-radius: 10px; padding: 20px; max-width: 280px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 16px; }',
-      '.ns-root .ns-modal-icon { width: 32px; height: 32px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: inline-flex; align-items: center; justify-content: center; align-self: center; flex-shrink: 0; }',
-      '.ns-root .ns-modal-icon svg { width: 18px; height: 18px; display: block; }',
-      '.ns-root .ns-modal-text { color: #111827; font-size: 14px; line-height: 1.5; text-align: center; }',
-      '.ns-root .ns-modal-ok { align-self: center; padding: 8px 20px; height: 36px; background: ' + BRAND_COLOR + '; color: white; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; min-width: 80px; display: inline-flex; align-items: center; justify-content: center; }',
-      '.ns-root .ns-modal-ok:hover { opacity: 0.9; }',
-      '@media (max-width: 480px) { .ns-root .ns-panel { right: 0; bottom: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; } }',
+      '.ns-root, .ns-root *, .ns-root *::before, .ns-root *::after { box-sizing: border-box; margin: 0; }',
+      '.ns-root { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647; font-family: var(--ns-font-family); font-size: var(--ns-font-size-base); color: var(--ns-surface-ink); line-height: 1.45; }',
+      // Token defaults — overridden by inline style on the root for
+      // per-merchant brand colours and sizes.
+      '.ns-root { --ns-brand-color: #1a1a1a; --ns-brand-accent: #e85d4a; --ns-launcher-icon-color: #ffffff; --ns-send-icon-color: #ffffff; --ns-panel-width: 380px; --ns-panel-height: 600px; --ns-launcher-size: 60px; --ns-panel-radius: 20px; --ns-bubble-radius: 18px; --ns-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; --ns-font-size-base: 15px; --ns-surface-bg: #ffffff; --ns-surface-ink: #18140f; --ns-surface-muted: #6b6359; --ns-surface-line: #ece5d6; --ns-bubble-in-bg: #f1ebde; --ns-bubble-in-ink: #18140f; --ns-input-bg: #faf6ee; --_typing-dot: #b5ad9d; --_shadow: 0 18px 50px -12px rgba(20,16,8,0.18), 0 4px 14px -4px rgba(20,16,8,0.08); }',
+      '.ns-root[data-theme="dark"] { --ns-surface-bg: #1a1714; --ns-surface-ink: #f5efe2; --ns-surface-muted: #98907f; --ns-surface-line: #2c2620; --ns-bubble-in-bg: #2a241d; --ns-bubble-in-ink: #f5efe2; --ns-input-bg: #221d18; --_typing-dot: #6b6359; --_shadow: 0 18px 50px -12px rgba(0,0,0,0.55), 0 4px 14px -4px rgba(0,0,0,0.35); }',
+      '.ns-root[data-shadow="none"]   { --_shadow: none; }',
+      '.ns-root[data-shadow="subtle"] { --_shadow: 0 4px 14px -4px rgba(20,16,8,0.10); }',
+      '.ns-root[data-shadow="medium"] { --_shadow: 0 18px 50px -12px rgba(20,16,8,0.18), 0 4px 14px -4px rgba(20,16,8,0.08); }',
+      '.ns-root[data-shadow="strong"] { --_shadow: 0 32px 80px -16px rgba(20,16,8,0.36), 0 10px 30px -8px rgba(20,16,8,0.16); }',
+      '.ns-root button { font: inherit; cursor: pointer; background: transparent; border: 0; color: inherit; padding: 0; }',
+      '.ns-root input, .ns-root textarea { font: inherit; color: inherit; background: transparent; border: 0; outline: none; padding: 0; -webkit-appearance: none; appearance: none; }',
+      // ---- Launcher ----
+      '.ns-launcher { position: absolute; right: 24px; bottom: 24px; width: var(--ns-launcher-size); height: var(--ns-launcher-size); background: var(--ns-brand-color); color: var(--ns-launcher-icon-color); box-shadow: var(--_shadow); pointer-events: auto; display: grid; place-items: center; transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms, border-radius 280ms cubic-bezier(.22,1,.36,1); }',
+      '.ns-launcher:hover { transform: translateY(-2px) scale(1.04); }',
+      '.ns-launcher:active { transform: translateY(0) scale(0.96); }',
+      '.ns-root[data-launcher-shape="circle"]  .ns-launcher { border-radius: 9999px; }',
+      '.ns-root[data-launcher-shape="rounded"] .ns-launcher { border-radius: 16px; }',
+      '.ns-root[data-launcher-shape="square"]  .ns-launcher { border-radius: 4px; }',
+      '.ns-launcher-icon { grid-area: 1 / 1; width: 54%; height: 54%; display: grid; place-items: center; color: inherit; transition: opacity 220ms cubic-bezier(.22,1,.36,1), transform 280ms cubic-bezier(.22,1,.36,1); transform-origin: 50% 50%; }',
+      '.ns-launcher-icon svg { width: 100%; height: 100%; display: block; color: inherit; }',
+      '.ns-root[data-open="false"] .ns-launcher-icon.icon-default { opacity: 1; transform: rotate(0deg) scale(1); }',
+      '.ns-root[data-open="false"] .ns-launcher-icon.icon-close   { opacity: 0; transform: rotate(-45deg) scale(0.6); pointer-events: none; }',
+      '.ns-root[data-open="true"]  .ns-launcher-icon.icon-default { opacity: 0; transform: rotate(45deg) scale(0.6); pointer-events: none; }',
+      '.ns-root[data-open="true"]  .ns-launcher-icon.icon-close   { opacity: 1; transform: rotate(0deg) scale(1); }',
+      // ---- Panel ----
+      '.ns-panel { position: absolute; right: 24px; bottom: calc(24px + var(--ns-launcher-size) + 14px); width: var(--ns-panel-width); height: var(--ns-panel-height); max-height: calc(100vh - 48px - var(--ns-launcher-size) - 14px); background: var(--ns-surface-bg); color: var(--ns-surface-ink); border-radius: var(--ns-panel-radius); box-shadow: var(--_shadow); display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; transform-origin: 100% 100%; transition: opacity 260ms cubic-bezier(.22,1,.36,1), transform 360ms cubic-bezier(.22,1,.36,1), visibility 0s linear 0s; will-change: transform, opacity; }',
+      '.ns-root[data-open="false"] .ns-panel { opacity: 0; transform: translateY(16px) scale(0.94); pointer-events: none; visibility: hidden; transition: opacity 200ms cubic-bezier(.4,0,1,1), transform 240ms cubic-bezier(.4,0,1,1), visibility 0s linear 240ms; }',
+      // ---- Header ----
+      '.ns-header { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; background: var(--ns-brand-color); color: #fff; }',
+      '.ns-avatar { width: 36px; height: 36px; border-radius: 999px; background: color-mix(in srgb, #fff 18%, var(--ns-brand-color)); color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 600; position: relative; flex: 0 0 auto; }',
+      '.ns-title-block { flex: 1; min-width: 0; }',
+      '.ns-title { font-size: 14.5px; font-weight: 600; letter-spacing: -0.005em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+      '.ns-subtitle { font-size: 12px; opacity: 0.72; line-height: 1.3; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+      '.ns-subtitle:empty { display: none; }',
+      '.ns-header-actions { display: flex; gap: 2px; flex: 0 0 auto; }',
+      '.ns-icon-btn { width: 32px; height: 32px; border-radius: 8px; color: #fff; display: grid; place-items: center; opacity: 0.8; transition: opacity 120ms, background 120ms; }',
+      '.ns-icon-btn:hover { opacity: 1; background: rgba(255,255,255,0.12); }',
+      '.ns-icon-btn svg { width: 16px; height: 16px; }',
+      // ---- Body ----
+      '.ns-body { flex: 1; overflow-y: auto; padding: 18px 16px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--ns-surface-bg); scrollbar-width: thin; scrollbar-color: var(--ns-surface-line) transparent; }',
+      '.ns-body::-webkit-scrollbar { width: 8px; }',
+      '.ns-body::-webkit-scrollbar-thumb { background: var(--ns-surface-line); border-radius: 4px; }',
+      '.ns-day { text-align: center; font-size: 11px; color: var(--ns-surface-muted); padding: 6px 0 10px; text-transform: uppercase; letter-spacing: 0.1em; }',
+      '.ns-msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 100%; }',
+      '.ns-msg-row.in  { justify-content: flex-start; }',
+      '.ns-msg-row.out { justify-content: flex-end; }',
+      '.ns-msg-avatar { width: 24px; height: 24px; border-radius: 999px; background: var(--ns-bubble-in-bg); color: var(--ns-bubble-in-ink); display: grid; place-items: center; font-size: 10.5px; font-weight: 600; flex: 0 0 auto; margin-bottom: 2px; }',
+      '.ns-bubble { padding: 10px 14px; border-radius: var(--ns-bubble-radius); font-size: var(--ns-font-size-base); line-height: 1.45; max-width: 78%; word-wrap: break-word; }',
+      // Markdown stays flat (the system prompt forbids bold/italic).
+      '.ns-bubble strong, .ns-bubble b, .ns-bubble em, .ns-bubble i { font-weight: inherit; font-style: normal; }',
+      '.ns-bubble.in { background: var(--ns-bubble-in-bg); color: var(--ns-bubble-in-ink); border-bottom-left-radius: 6px; }',
+      '.ns-bubble.out { background: var(--ns-brand-color); color: #fff; border-bottom-right-radius: 6px; }',
+      '.ns-bubble p { margin: 0 0 6px 0; }',
+      '.ns-bubble p:last-child { margin-bottom: 0; }',
+      '.ns-bubble ul, .ns-bubble ol { margin: 4px 0 6px 0; padding-left: 18px; }',
+      '.ns-bubble li { margin: 2px 0; }',
+      '.ns-bubble a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }',
+      '.ns-bubble a:hover { opacity: 0.85; }',
+      // Typing indicator (replaces the old text "Thinking…")
+      '.ns-typing { background: var(--ns-bubble-in-bg); border-radius: var(--ns-bubble-radius); border-bottom-left-radius: 6px; padding: 12px 14px; display: inline-flex; gap: 4px; align-items: center; }',
+      '.ns-typing span { width: 6px; height: 6px; border-radius: 999px; background: var(--_typing-dot); animation: ns-bounce 1.2s infinite ease-in-out; }',
+      '.ns-typing span:nth-child(2) { animation-delay: 0.15s; }',
+      '.ns-typing span:nth-child(3) { animation-delay: 0.30s; }',
+      '@keyframes ns-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.55; } 30% { transform: translateY(-4px); opacity: 1; } }',
+      // ---- Message entrance animations (incoming unfolds, outgoing lifts) ----
+      '@keyframes ns-out-bubble { 0% { opacity: 0; transform: translateY(18px) scale(0.94); } 100% { opacity: 1; transform: translateY(0) scale(1); } }',
+      '@keyframes ns-in-bubble  { 0% { opacity: 0; transform: translateY(6px) scale(0.96); clip-path: inset(85% 80% 0% 0% round var(--ns-bubble-radius)); } 55% { opacity: 1; } 100% { opacity: 1; transform: translateY(0) scale(1); clip-path: inset(0 0 0 0 round var(--ns-bubble-radius)); } }',
+      '@keyframes ns-typing-in  { 0% { opacity: 0; transform: translateY(4px) scale(0.85); } 100% { opacity: 1; transform: translateY(0) scale(1); } }',
+      '@keyframes ns-avatar-pop { 0% { opacity: 0; transform: scale(0.4); } 70% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }',
+      '.ns-msg-row.in  .ns-bubble, .ns-msg-row.in  .ns-typing { transform-origin: 0% 100%; }',
+      '.ns-msg-row.out .ns-bubble { transform-origin: 100% 100%; }',
+      '.ns-msg-row.in.ns-fresh  .ns-bubble  { animation: ns-in-bubble  520ms cubic-bezier(.22, 1, .36, 1) both; }',
+      '.ns-msg-row.out.ns-fresh .ns-bubble  { animation: ns-out-bubble 340ms cubic-bezier(.2, .9, .25, 1.15) both; }',
+      '.ns-fresh .ns-typing                 { animation: ns-typing-in 280ms cubic-bezier(.22, 1, .36, 1) both; }',
+      '.ns-fresh .ns-msg-avatar             { animation: ns-avatar-pop 380ms cubic-bezier(.34, 1.4, .5, 1) both; animation-delay: -80ms; }',
+      // First-open: fade the whole body up as one piece (don\'t cascade).
+      '@keyframes ns-first-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }',
+      '.ns-body.ns-first-open { animation: ns-first-fade 360ms cubic-bezier(.22,1,.36,1) both; }',
+      '@media (prefers-reduced-motion: reduce) { .ns-msg-row.ns-fresh .ns-bubble, .ns-fresh .ns-typing, .ns-fresh .ns-msg-avatar, .ns-body.ns-first-open { animation: none; } }',
+      // ---- Composer ----
+      '.ns-composer { border-top: 1px solid var(--ns-surface-line); padding: 10px 12px 12px; background: var(--ns-surface-bg); }',
+      '.ns-input-wrap { display: flex; align-items: flex-end; gap: 8px; background: var(--ns-input-bg); border: 1px solid var(--ns-surface-line); border-radius: 16px; padding: 6px 6px 6px 14px; transition: border-color 140ms; }',
+      '.ns-input-wrap:focus-within { border-color: var(--ns-brand-accent); }',
+      '.ns-input-wrap.ns-over { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.10); }',
+      '.ns-input { flex: 1; resize: none; padding: 8px 0; max-height: 110px; line-height: 1.4; }',
+      '.ns-input::placeholder { color: var(--ns-surface-muted); }',
+      '.ns-send { width: 36px; height: 36px; background: var(--ns-brand-color); color: var(--ns-send-icon-color); display: grid; place-items: center; flex: 0 0 auto; transition: transform 140ms, opacity 140ms; }',
+      '.ns-send:disabled { opacity: 0.4; cursor: not-allowed; }',
+      '.ns-send:not(:disabled):hover { transform: translateY(-1px); }',
+      '.ns-send svg { width: 16px; height: 16px; }',
+      '.ns-root[data-send-shape="circle"]  .ns-send { border-radius: 9999px; }',
+      '.ns-root[data-send-shape="rounded"] .ns-send { border-radius: 10px; }',
+      '.ns-root[data-send-shape="square"]  .ns-send { border-radius: 4px; }',
+      '.ns-root[data-send-fill="solid"]   .ns-send { background: var(--ns-brand-color); color: var(--ns-send-icon-color); border: 1px solid transparent; }',
+      '.ns-root[data-send-fill="outline"] .ns-send { background: transparent; color: var(--ns-brand-color); border: 1.5px solid var(--ns-brand-color); }',
+      '.ns-root[data-send-fill="ghost"]   .ns-send { background: transparent; color: var(--ns-brand-color); border: 0; }',
+      '.ns-root[data-theme="dark"][data-send-fill="outline"] .ns-send { color: #fff; border-color: rgba(255,255,255,0.5); }',
+      '.ns-root[data-theme="dark"][data-send-fill="ghost"]   .ns-send { color: #fff; }',
+      // Foot (privacy link / powered-by attribution)
+      '.ns-foot { text-align: center; font-size: 10.5px; color: var(--ns-surface-muted); padding: 6px 0 2px; letter-spacing: 0.02em; }',
+      '.ns-foot a { color: inherit; text-decoration: none; }',
+      '.ns-foot a:hover { text-decoration: underline; color: var(--ns-surface-ink); }',
+      '.ns-foot b { color: var(--ns-surface-ink); font-weight: 500; }',
+      // ---- Modal (error toasts) ----
+      '.ns-modal-backdrop { position: absolute; inset: 0; background: rgba(17,24,39,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1; }',
+      '.ns-modal-backdrop.ns-hidden { display: none; }',
+      '.ns-modal { background: var(--ns-surface-bg); color: var(--ns-surface-ink); border-radius: 12px; padding: 20px; max-width: 280px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 16px; }',
+      '.ns-modal-icon { width: 32px; height: 32px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: inline-flex; align-items: center; justify-content: center; align-self: center; flex-shrink: 0; }',
+      '.ns-modal-icon svg { width: 18px; height: 18px; display: block; }',
+      '.ns-modal-text { font-size: 14px; line-height: 1.5; text-align: center; }',
+      '.ns-modal-ok { align-self: center; padding: 8px 20px; height: 36px; background: var(--ns-brand-color); color: #fff; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; min-width: 80px; display: inline-flex; align-items: center; justify-content: center; }',
+      '.ns-modal-ok:hover { opacity: 0.9; }',
+      // ---- Mobile fullscreen ----
+      '@media (max-width: 480px) { .ns-panel { right: 0; left: 0; bottom: 0; top: 0; width: 100%; height: 100%; max-height: 100%; border-radius: 0; } .ns-launcher { right: 16px; bottom: 16px; } .ns-root[data-open="true"] .ns-launcher { display: none; } }',
     ].join('\n');
 
     // Shadow DOM isolation. A single host element on document.body owns the
@@ -486,46 +553,89 @@
 
     var root = document.createElement('div');
     root.className = 'ns-root';
+    root.setAttribute('data-open', 'false');
+    root.setAttribute('data-theme', THEME);
+    root.setAttribute('data-shadow', SHADOW);
+    root.setAttribute('data-launcher-shape', LAUNCHER_SHAPE);
+    root.setAttribute('data-send-shape', SEND_SHAPE);
+    root.setAttribute('data-send-fill', SEND_FILL);
+    root.setAttribute('data-icon-style', ICON_STYLE);
+    // Per-tenant tokens. Sizes and colours are set as CSS custom
+    // properties on the root so the design CSS can read them uniformly.
+    root.style.setProperty('--ns-brand-color', BRAND_COLOR);
+    root.style.setProperty('--ns-brand-accent', BRAND_ACCENT);
+    root.style.setProperty('--ns-launcher-icon-color', LAUNCHER_ICON_COLOR);
+    root.style.setProperty('--ns-send-icon-color', SEND_ICON_COLOR);
+    root.style.setProperty('--ns-panel-width', PANEL_W + 'px');
+    root.style.setProperty('--ns-panel-height', PANEL_H + 'px');
+    // Surface overrides — set only when the merchant provided a value, so
+    // unset entries fall back to the theme's CSS defaults.
+    if (SURFACES.bg)          root.style.setProperty('--ns-surface-bg', SURFACES.bg);
+    if (SURFACES.ink)         root.style.setProperty('--ns-surface-ink', SURFACES.ink);
+    if (SURFACES.bubbleInBg)  root.style.setProperty('--ns-bubble-in-bg', SURFACES.bubbleInBg);
+    if (SURFACES.bubbleInInk) root.style.setProperty('--ns-bubble-in-ink', SURFACES.bubbleInInk);
+    if (SURFACES.inputBg)     root.style.setProperty('--ns-input-bg', SURFACES.inputBg);
 
-    var bubble = document.createElement('button');
-    bubble.className = 'ns-bubble';
-    bubble.setAttribute('aria-label', t('openLabel'));
-    bubble.innerHTML = LAUNCHER_SVG[ICON_STYLE] || LAUNCHER_SVG.bot;
+    var launcherSvg = LAUNCHER_SVG[ICON_STYLE] || LAUNCHER_SVG.chat_bubble;
+    var launcher = document.createElement('button');
+    launcher.className = 'ns-launcher';
+    launcher.setAttribute('aria-label', t('openLabel'));
+    launcher.innerHTML =
+      '<span class="ns-launcher-icon icon-default">' + launcherSvg + '</span>' +
+      '<span class="ns-launcher-icon icon-close" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+      '</span>';
+
+    // Foot content depends on whether we can link to /privacy (only when
+    // the widget booted from a <script data-assistant=…> install, which
+    // sets ASSISTANT_ID + SCRIPT_ORIGIN). Inline-token installs fall back
+    // to a "Powered by <brand>" attribution.
+    var footHtml;
+    if (ASSISTANT_ID && SCRIPT_ORIGIN) {
+      var privacyHref =
+        SCRIPT_ORIGIN +
+        '/privacy?a=' +
+        encodeURIComponent(ASSISTANT_ID) +
+        '&lang=' +
+        encodeURIComponent(LANGUAGE);
+      footHtml =
+        '<a href="' + escapeAttr(privacyHref) + '" target="_blank" rel="noopener noreferrer">' +
+        escapeHtml(t('privacyLabel')) +
+        '</a>';
+    } else {
+      footHtml = escapeHtml(t('poweredBy')) + ' <b>' + escapeHtml(BRAND_NAME) + '</b>';
+    }
 
     var panel = document.createElement('div');
-    panel.className = 'ns-panel ns-hidden';
+    panel.className = 'ns-panel';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', BRAND_NAME);
     panel.innerHTML =
-      '<div class="ns-header">' +
-      '<span class="ns-header-title"></span>' +
+      '<header class="ns-header">' +
+      '<div class="ns-avatar">' + escapeHtml(AVATAR_INITIAL) + '</div>' +
+      '<div class="ns-title-block">' +
+      '<div class="ns-title"></div>' +
+      '<div class="ns-subtitle"></div>' +
+      '</div>' +
+      '<div class="ns-header-actions">' +
       '<button type="button" class="ns-icon-btn ns-close" aria-label="' + escapeAttr(t('closeLabel')) + '">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>' +
       '</button>' +
       '</div>' +
-      '<div class="ns-messages" role="log" aria-live="polite"></div>' +
-      '<div class="ns-footer">' +
+      '</header>' +
+      '<div class="ns-body" role="log" aria-live="polite">' +
+      '<div class="ns-day">' + escapeHtml(t('todayLabel')) + '</div>' +
+      '</div>' +
+      '<div class="ns-composer">' +
       '<form class="ns-form" autocomplete="off">' +
-      '<input type="text" class="ns-input" placeholder="' + escapeAttr(PLACEHOLDER) + '" aria-label="' + escapeAttr(PLACEHOLDER) + '" />' +
-      '<button type="submit" class="ns-send" aria-label="' + escapeAttr(t('sendLabel')) + '">' +
+      '<div class="ns-input-wrap">' +
+      '<textarea class="ns-input" rows="1" placeholder="' + escapeAttr(PLACEHOLDER) + '" aria-label="' + escapeAttr(PLACEHOLDER) + '"></textarea>' +
+      '<button type="submit" class="ns-send" aria-label="' + escapeAttr(t('sendLabel')) + '" disabled>' +
       (SEND_SVG[SEND_ICON] || SEND_SVG.arrow_up) +
       '</button>' +
-      '</form>' +
-      '<div class="ns-privacy' + (ASSISTANT_ID && SCRIPT_ORIGIN ? '' : ' ns-hidden') + '">' +
-      (ASSISTANT_ID && SCRIPT_ORIGIN
-        ? '<a href="' +
-          escapeAttr(
-            SCRIPT_ORIGIN +
-              '/privacy?a=' +
-              encodeURIComponent(ASSISTANT_ID) +
-              '&lang=' +
-              encodeURIComponent(LANGUAGE),
-          ) +
-          '" target="_blank" rel="noopener noreferrer">' +
-          escapeHtml(t('privacyLabel')) +
-          '</a>'
-        : '') +
       '</div>' +
+      '<div class="ns-foot">' + footHtml + '</div>' +
+      '</form>' +
       '</div>' +
       '<div class="ns-modal-backdrop ns-hidden" role="alertdialog" aria-modal="true">' +
       '<div class="ns-modal">' +
@@ -537,11 +647,12 @@
       '</div>' +
       '</div>';
 
-    var titleEl = panel.querySelector('.ns-header-title');
-    titleEl.textContent = BRAND_NAME;
+    panel.querySelector('.ns-title').textContent = BRAND_NAME;
+    panel.querySelector('.ns-subtitle').textContent = SUBTITLE;
 
-    var messagesEl = panel.querySelector('.ns-messages');
+    var bodyEl = panel.querySelector('.ns-body');
     var formEl = panel.querySelector('.ns-form');
+    var inputWrapEl = panel.querySelector('.ns-input-wrap');
     var inputEl = panel.querySelector('.ns-input');
     var sendEl = panel.querySelector('.ns-send');
     var closeEl = panel.querySelector('.ns-close');
@@ -549,58 +660,102 @@
     var modalTextEl = panel.querySelector('.ns-modal-text');
     var modalOkEl = panel.querySelector('.ns-modal-ok');
 
-    root.appendChild(bubble);
     root.appendChild(panel);
+    root.appendChild(launcher);
     shadow.appendChild(root);
     document.body.appendChild(host);
 
-    function render() {
-      bubble.classList.toggle('ns-hidden', open);
-      panel.classList.toggle('ns-hidden', !open);
+    // ---- DOM helpers (append-only model) ----
+    // Each user turn appends one .ns-msg-row.out. Each assistant turn
+    // appends a single row that initially contains .ns-typing; the
+    // streaming pipeline swaps .ns-typing for a .ns-bubble.in once the
+    // first text-delta arrives, then mutates the bubble's innerHTML
+    // as more deltas come in. We never re-render the whole body, so
+    // entrance animations only fire once per row.
+    function appendDayIfMissing() {
+      if (!bodyEl.querySelector('.ns-day')) {
+        var day = document.createElement('div');
+        day.className = 'ns-day';
+        day.textContent = t('todayLabel');
+        bodyEl.appendChild(day);
+      }
+    }
 
-      messagesEl.innerHTML = '';
-      // Greeting bubble — synthetic first bot message, only when there's
-      // no real conversation yet AND the post-open delay has elapsed.
-      if (messages.length === 0 && GREETING && greetingShown) {
-        var greetEl = document.createElement('div');
-        greetEl.className = 'ns-msg ns-assistant';
-        greetEl.innerHTML = renderMarkdown(GREETING);
-        messagesEl.appendChild(greetEl);
-      }
-      for (var i = 0; i < messages.length; i++) {
-        var m = messages[i];
-        // Skip the empty assistant placeholder before the first token lands —
-        // the "Thinking…" indicator covers that gap.
-        if (m.role === 'assistant' && !m.content) continue;
-        var div = document.createElement('div');
-        div.className = 'ns-msg ns-' + m.role;
-        // Assistant replies render markdown (links, lists, line breaks).
-        // User messages stay as plain text so a customer typing "[label](url)"
-        // doesn't get auto-linkified into something they didn't intend.
-        if (m.role === 'assistant') {
-          div.innerHTML = renderMarkdown(m.content);
-        } else {
-          div.textContent = m.content;
-        }
-        messagesEl.appendChild(div);
-      }
-      // Show "Thinking…" only while the assistant bubble is empty — once the
-      // first streamed token lands, the bubble itself is the indicator.
-      var lastMsg = messages[messages.length - 1];
-      var bubbleStillEmpty =
-        lastMsg && lastMsg.role === 'assistant' && !lastMsg.content;
-      if (sending && bubbleStillEmpty) {
-        var thinking = document.createElement('div');
-        thinking.className = 'ns-thinking';
-        thinking.textContent = strings.thinking;
-        messagesEl.appendChild(thinking);
-      }
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+    function scheduleFreshCleanup(row) {
+      // Strip ns-fresh after the longest entrance animation has run, so
+      // any later layout shift (image load, etc.) doesn't replay it and
+      // the row participates in normal transitions.
+      setTimeout(function () { row.classList.remove('ns-fresh'); }, 700);
+    }
 
+    function appendUserRow(text) {
+      appendDayIfMissing();
+      var row = document.createElement('div');
+      row.className = 'ns-msg-row out ns-fresh';
+      var bubble = document.createElement('div');
+      bubble.className = 'ns-bubble out';
+      bubble.textContent = text;
+      row.appendChild(bubble);
+      bodyEl.appendChild(row);
+      bodyEl.scrollTop = bodyEl.scrollHeight;
+      scheduleFreshCleanup(row);
+      return row;
+    }
+
+    function appendAssistantRow(initialContent) {
+      appendDayIfMissing();
+      var row = document.createElement('div');
+      row.className = 'ns-msg-row in ns-fresh';
+      var avatar = document.createElement('div');
+      avatar.className = 'ns-msg-avatar';
+      avatar.textContent = AVATAR_INITIAL;
+      row.appendChild(avatar);
+      if (initialContent) {
+        var bubble = document.createElement('div');
+        bubble.className = 'ns-bubble in';
+        bubble.innerHTML = renderMarkdown(initialContent);
+        row.appendChild(bubble);
+      } else {
+        // Empty placeholder = typing dots; swapped on first token.
+        var typing = document.createElement('div');
+        typing.className = 'ns-typing';
+        typing.innerHTML = '<span></span><span></span><span></span>';
+        row.appendChild(typing);
+      }
+      bodyEl.appendChild(row);
+      bodyEl.scrollTop = bodyEl.scrollHeight;
+      scheduleFreshCleanup(row);
+      return row;
+    }
+
+    function updateAssistantRow(row, content) {
+      var bubble = row.querySelector('.ns-bubble.in');
+      if (!bubble) {
+        // First token: swap typing dots for a real bubble.
+        var typing = row.querySelector('.ns-typing');
+        bubble = document.createElement('div');
+        bubble.className = 'ns-bubble in';
+        if (typing) row.replaceChild(bubble, typing);
+        else row.appendChild(bubble);
+      }
+      bubble.innerHTML = renderMarkdown(content);
+      bodyEl.scrollTop = bodyEl.scrollHeight;
+    }
+
+    function removeRow(row) {
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+    }
+
+    function updateSendState() {
       var len = inputEl.value.trim().length;
       var over = len > MAX_CHARS;
-      inputEl.classList.toggle('ns-over', over);
+      inputWrapEl.classList.toggle('ns-over', over);
       sendEl.disabled = sending || len === 0 || over;
+    }
+
+    function autoGrowInput() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 110) + 'px';
     }
 
     function showModal(message) {
@@ -615,12 +770,11 @@
     function send(message) {
       if (sending) return;
       sending = true;
-      messages.push({ role: 'user', content: message });
-      // Placeholder assistant bubble we append text-delta events into.
-      // Created upfront so the "thinking" indicator gives way to a growing
-      // bubble as the first token lands.
-      var assistantIndex = messages.push({ role: 'assistant', content: '' }) - 1;
-      render();
+      var userRow = appendUserRow(message);
+      var assistantRow = appendAssistantRow('');
+      var streamedText = '';
+      var sawFirstToken = false;
+      updateSendState();
 
       var body = { message: message };
       if (sessionId) {
@@ -665,33 +819,16 @@
           sending = false;
           // If the model produced nothing at all (rare — auth/quota error
           // after stream open), strip the empty assistant bubble.
-          if (
-            messages[assistantIndex] &&
-            messages[assistantIndex].role === 'assistant' &&
-            !messages[assistantIndex].content
-          ) {
-            messages.splice(assistantIndex, 1);
-          }
-          render();
+          if (!sawFirstToken) removeRow(assistantRow);
+          updateSendState();
         })
         .catch(function (err) {
           sending = false;
-          // Drop the optimistic user + empty assistant bubbles; modal carries
-          // the failure.
-          if (
-            messages[assistantIndex] &&
-            messages[assistantIndex].role === 'assistant' &&
-            !messages[assistantIndex].content
-          ) {
-            messages.splice(assistantIndex, 1);
-          }
-          if (
-            messages.length > 0 &&
-            messages[messages.length - 1].role === 'user'
-          ) {
-            messages.pop();
-          }
-          render();
+          // Drop the optimistic user + empty assistant rows; modal carries
+          // the failure context.
+          removeRow(assistantRow);
+          removeRow(userRow);
+          updateSendState();
           if (err && typeof err === 'object' && 'status' in err) {
             var status = err.status;
             var data = err.data;
@@ -712,9 +849,8 @@
 
       // Reads an SSE-style ReadableStream of UI message protocol events.
       // Each event is a `data: {json}` line followed by a blank line.
-      // We care about text-delta events; everything else (start, start-step,
-      // tool-call, finish, etc.) is ignored — the agent's final text is
-      // simply the concatenation of all text-delta deltas.
+      // We only care about text-delta events; the agent's final text is
+      // the concatenation of all deltas.
       function consumeStream(body) {
         var reader = body.getReader();
         var decoder = new TextDecoder();
@@ -737,8 +873,6 @@
       }
 
       function flushEvents(buf, isFinal) {
-        // Events are separated by a blank line ("\n\n"). Keep the trailing
-        // partial event in the buffer for the next chunk.
         var idx;
         while ((idx = buf.indexOf('\n\n')) !== -1) {
           var raw = buf.slice(0, idx);
@@ -753,7 +887,6 @@
       }
 
       function handleEvent(raw) {
-        // An event is one or more lines, each starting with "data: ".
         var lines = raw.split('\n');
         var dataStr = '';
         for (var i = 0; i < lines.length; i++) {
@@ -768,8 +901,9 @@
         var parsed;
         try { parsed = JSON.parse(dataStr); } catch (_) { return; }
         if (parsed && parsed.type === 'text-delta' && typeof parsed.delta === 'string') {
-          messages[assistantIndex].content += parsed.delta;
-          render();
+          streamedText += parsed.delta;
+          sawFirstToken = true;
+          updateAssistantRow(assistantRow, streamedText);
         }
       }
     }
@@ -786,40 +920,64 @@
       }
     }
 
-    // ---- Events ----
-    bubble.addEventListener('click', function () {
+    function openPanel() {
+      if (open) return;
       open = true;
-      // Only delay the greeting if there's no real conversation yet —
-      // returning customers shouldn't wait.
-      if (messages.length === 0 && GREETING && !greetingShown) {
-        greetingShown = false;
+      root.setAttribute('data-open', 'true');
+      // First open fades the whole body up gently — single motion, not a
+      // per-row cascade, so returning customers don't see their history
+      // replay every animation.
+      if (!firstOpenDone) {
+        firstOpenDone = true;
+        bodyEl.classList.add('ns-first-open');
+        setTimeout(function () { bodyEl.classList.remove('ns-first-open'); }, 500);
+      }
+      // Greeting: ~1s delay on first open of an empty conversation, so
+      // the human reads the panel chrome first.
+      if (!greetingShown && GREETING && !bodyEl.querySelector('.ns-msg-row')) {
         if (greetingTimer) clearTimeout(greetingTimer);
         greetingTimer = setTimeout(function () {
           greetingShown = true;
-          if (open) render();
+          if (open && !bodyEl.querySelector('.ns-msg-row.in')) {
+            var row = appendAssistantRow(GREETING);
+            // The greeting isn't part of `messages` — it's a synthetic
+            // first turn rendered locally only. The backend never sees it.
+            row.setAttribute('data-greeting', '');
+          }
         }, 1000);
       } else {
         greetingShown = true;
       }
-      render();
-      inputEl.focus();
-    });
-    closeEl.addEventListener('click', function () {
+      setTimeout(function () { try { inputEl.focus(); } catch (_) {} }, 60);
+    }
+
+    function closePanel() {
       open = false;
-      // Reset so the next open replays the small delay.
-      greetingShown = false;
-      if (greetingTimer) {
-        clearTimeout(greetingTimer);
-        greetingTimer = null;
-      }
-      render();
+      root.setAttribute('data-open', 'false');
+      // Cancel a pending greeting so it doesn't pop in after close.
+      if (greetingTimer) { clearTimeout(greetingTimer); greetingTimer = null; }
+    }
+
+    // ---- Events ----
+    launcher.addEventListener('click', function () {
+      if (open) closePanel();
+      else openPanel();
     });
+    closeEl.addEventListener('click', closePanel);
     inputEl.addEventListener('input', function () {
       var len = inputEl.value.trim().length;
       var nowOver = len > MAX_CHARS;
       if (nowOver && !wasOver) showModal(t('errTooLong'));
       wasOver = nowOver;
-      render();
+      autoGrowInput();
+      updateSendState();
+    });
+    inputEl.addEventListener('keydown', function (e) {
+      // Enter sends; Shift+Enter inserts a newline.
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        try { formEl.requestSubmit ? formEl.requestSubmit() : formEl.dispatchEvent(new Event('submit', { cancelable: true })); } catch (_) {}
+      }
     });
     formEl.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -831,6 +989,7 @@
       }
       if (!text) return;
       inputEl.value = '';
+      autoGrowInput();
       wasOver = false;
       send(text);
     });
@@ -841,14 +1000,11 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && open) {
         if (!modalBackdropEl.classList.contains('ns-hidden')) hideModal();
-        else {
-          open = false;
-          render();
-        }
+        else closePanel();
       }
     });
 
-    render();
+    updateSendState();
   }
 
   function pickLanguage(lang) {
