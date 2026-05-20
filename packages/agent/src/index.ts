@@ -35,7 +35,16 @@ export type {
   HandoffPayload,
   HandoffSender,
   HandoffSendResult,
+  OrderSummary,
+  TrackingSummary,
+  RefundSummary,
 } from './agent/tools.ts';
+export { getShopifyClient } from './integrations/shopify/client.ts';
+export type { ShopifyClient } from './integrations/shopify/client.ts';
+export { getKlarnaClient } from './integrations/klarna/client.ts';
+export type { KlarnaClient } from './integrations/klarna/client.ts';
+export { getPostNordClient } from './integrations/postnord/client.ts';
+export type { PostNordClient } from './integrations/postnord/client.ts';
 export { buildSystemPrompt } from './agent/system-prompt.ts';
 export type { SystemPromptContext } from './agent/system-prompt.ts';
 export type * from './agent/types.ts';

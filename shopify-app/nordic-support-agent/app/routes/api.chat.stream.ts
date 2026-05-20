@@ -25,6 +25,7 @@ import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
 import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
 import { extractOriginHost, recordRunMetadata } from '../lib/conversation-log.ts';
+import { getCommerceAdapters } from '../lib/commerce.ts';
 
 /**
  * Streaming chat endpoint. Emits the AI SDK UI message stream protocol so
@@ -270,6 +271,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
     verificationTier: assistant.config.verificationTier,
+    ...getCommerceAdapters(shop),
   };
 
   const conversationId = convo.id;

@@ -1,4 +1,6 @@
 import prisma from '../db.server';
+import { categorizeConversation, type CategoryKey } from './categorize.ts';
+import { getAssistant } from './assistants.ts';
 
 /**
  * Daily aggregate roll-up. Runs at conversation-purge time: each
@@ -51,13 +53,59 @@ export async function purgeExpiredAndRollUp(): Promise<{
     },
   })) as PurgeRow[];
 
+  // Cache assistant config lookups across the loop — many conversations
+  // typically belong to the same handful of assistants on a shop.
+  const assistantCache = new Map<string, Awaited<ReturnType<typeof getAssistant>>>();
+
   let rolledUp = 0;
   for (const row of expiring) {
     const turns = countTurns(row.messages);
     const outcome = deriveOutcome(row.handoffTriggered, turns);
     // Pull tool-call name counts before the cascade delete wipes them.
     const toolCounts = await fetchToolCounts(row.id);
-    await incrementDaily(row, outcome, turns, toolCounts);
+
+    // Categorize only when there's a real intent to bucket — abandoned
+    // chats (≤1 turn) don't carry useful signal and would just burn
+    // tokens. Same for ones we couldn't parse. Category stays null →
+    // they fall under "Uncategorized" if anyone counts them later.
+    let category: CategoryKey | null = null;
+    if (outcome !== 'abandoned') {
+      const userMessages = extractUserMessages(row.messages);
+      if (userMessages.length > 0) {
+        let businessType: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other' | undefined;
+        let businessDescription: string | undefined;
+        if (row.assistantId) {
+          if (!assistantCache.has(row.assistantId)) {
+            assistantCache.set(row.assistantId, await getAssistant(row.assistantId));
+          }
+          const a = assistantCache.get(row.assistantId);
+          businessType = a?.config.business.type;
+          businessDescription = a?.config.business.description;
+        }
+        category = await categorizeConversation({
+          userMessages,
+          businessType,
+          businessDescription,
+        });
+      }
+    }
+    // Stamp the category onto the row before delete so anything reading
+    // the raw conversations table (e.g. the conversation detail page in
+    // the 24h window) sees it. The increment-daily call below puts it
+    // into the aggregate.
+    if (category) {
+      await prisma.conversation.update({
+        where: { id: row.id },
+        data: { category, outcome },
+      });
+    } else {
+      await prisma.conversation.update({
+        where: { id: row.id },
+        data: { outcome },
+      });
+    }
+
+    await incrementDaily(row, outcome, turns, toolCounts, category);
     rolledUp += 1;
   }
 
@@ -88,6 +136,20 @@ function countTurns(messagesJson: string): number {
   }
 }
 
+function extractUserMessages(messagesJson: string): string[] {
+  try {
+    const parsed = JSON.parse(messagesJson);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((m): m is { role: string; content: string } =>
+        m && typeof m === 'object' && m.role === 'user' && typeof m.content === 'string',
+      )
+      .map((m) => m.content);
+  } catch {
+    return [];
+  }
+}
+
 async function fetchToolCounts(conversationId: string): Promise<Record<string, number>> {
   const rows = await prisma.toolCall.groupBy({
     by: ['name'],
@@ -108,6 +170,7 @@ async function incrementDaily(
   outcome: ConversationOutcome,
   turns: number,
   toolCounts: Record<string, number>,
+  category: CategoryKey | null,
 ): Promise<void> {
   const day = dayKey(row.createdAt);
   // Empty-string assistantId is the sentinel for "unknown / legacy" so
@@ -126,6 +189,10 @@ async function incrementDaily(
     existing ? safeParseRecord(existing.originHostCounts) : {},
     row.originHost ? { [row.originHost]: 1 } : {},
   );
+  const mergedCategories = mergeCounts(
+    existing ? safeParseRecord(existing.categoryCounts) : {},
+    category ? { [category]: 1 } : {},
+  );
 
   await prisma.conversationDaily.upsert({
     where: { shop_day_assistantId: { shop: row.shop, day, assistantId } },
@@ -141,6 +208,7 @@ async function incrementDaily(
       totalTurns: turns,
       toolCallCounts: JSON.stringify(mergedToolCounts),
       originHostCounts: JSON.stringify(mergedHosts),
+      categoryCounts: JSON.stringify(mergedCategories),
     },
     update: {
       conversationCount: { increment: 1 },
@@ -151,6 +219,7 @@ async function incrementDaily(
       totalTurns: { increment: turns },
       toolCallCounts: JSON.stringify(mergedToolCounts),
       originHostCounts: JSON.stringify(mergedHosts),
+      categoryCounts: JSON.stringify(mergedCategories),
     },
   });
 }

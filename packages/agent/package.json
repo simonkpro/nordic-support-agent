@@ -9,7 +9,9 @@
     "./run": "./src/agent/run.ts",
     "./tools": "./src/agent/tools.ts",
     "./types": "./src/agent/types.ts",
-    "./limits": "./src/agent/limits.ts"
+    "./limits": "./src/agent/limits.ts",
+    "./provider": "./src/agent/provider.ts",
+    "./env": "./src/env.ts"
   },
   "engines": {
     "node": ">=22.12"

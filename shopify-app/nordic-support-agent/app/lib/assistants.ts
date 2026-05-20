@@ -154,10 +154,11 @@ export const AssistantConfigSchema = z.object({
    *  - 2: email magic-link verification required before revealing PII or
    *       performing any mutation. Strongest, used when agent surfaces
    *       address/refund amounts or can change order state.
-   * Default 1 covers the common WISMO case; merchants opt up to 2 for
-   * sensitive surfaces, down to 0 for FAQ-only assistants.
+   * Default 0 for the MVP: most merchants ship RAG + handoff only. Order
+   * lookup is a post-MVP capability — merchants opt in to tier 1 or 2 when
+   * they actually wire a commerce backend.
    */
-  verificationTier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(1),
+  verificationTier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
   // === Step 3: Customize widget (Skräddarsy chattruta) =============
   widget: z.object({
     // Defaults match widget-design/index.html: near-black brand with a

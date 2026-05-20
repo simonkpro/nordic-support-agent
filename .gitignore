@@ -13,3 +13,4 @@ coverage
 .react-router
 build/
 prisma/dev.sqlite*
+.firecrawl/

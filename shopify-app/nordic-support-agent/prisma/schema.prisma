@@ -140,6 +140,11 @@ model Conversation {
   handoffTriggered Boolean @default(false)
   /** Derived at finalize/purge time. 'escalated' | 'abandoned' | 'resolved'. */
   outcome       String?
+  /** One of the stable category keys (booking, shipping, returns,
+   * product, service_info, pricing, account, complaint, general, other).
+   * Set at purge time by the cheap LLM classifier. Null for conversations
+   * we never categorized (abandoned, classifier off, errors). */
+  category      String?
   /** When the conversation was finalized (purge time or explicit close). */
   finalizedAt   DateTime?
 
@@ -214,6 +219,9 @@ model ConversationDaily {
   toolCallCounts    String  @default("{}")
   /** Origin-host counts as a JSON object: {"shop.example.com": 47, ...}. */
   originHostCounts  String  @default("{}")
+  /** Cumulative issue-category counts: {booking: 12, shipping: 3, ...}.
+   * Populated by the LLM classifier at purge time. */
+  categoryCounts    String  @default("{}")
 
   updatedAt         DateTime @updatedAt
 

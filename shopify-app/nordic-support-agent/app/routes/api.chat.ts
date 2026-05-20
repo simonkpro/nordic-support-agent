@@ -23,6 +23,7 @@ import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
 import { checkSpendCap, recordTokens } from '../lib/spend-cap.ts';
 import { extractOriginHost, recordRunMetadata } from '../lib/conversation-log.ts';
+import { getCommerceAdapters } from '../lib/commerce.ts';
 
 const RATE_LIMIT = { capacity: 20, refillPerMinute: 20 };
 const ALLOWED_METHODS = 'POST, OPTIONS';
@@ -276,6 +277,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       bodyTemplate: assistant.config.agent.handoffBodyTemplate,
     },
     verificationTier: assistant.config.verificationTier,
+    ...getCommerceAdapters(shop),
   };
 
   const runStartedAt = Date.now();
