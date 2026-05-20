@@ -164,6 +164,31 @@ export async function getWorkspaceFromRequest(
   };
 }
 
+/** Mark the workspace's onboarding as complete. Idempotent. */
+export async function markOnboardingComplete(workspaceId: string): Promise<void> {
+  await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: { onboardingCompletedAt: new Date() },
+  });
+}
+
+/** Reset onboarding — used by the "Kör onboarding igen" link in the dashboard. */
+export async function resetOnboarding(workspaceId: string): Promise<void> {
+  await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: { onboardingCompletedAt: null },
+  });
+}
+
+/** Whether this workspace has completed onboarding. */
+export async function isOnboardingComplete(workspaceId: string): Promise<boolean> {
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { onboardingCompletedAt: true },
+  });
+  return ws?.onboardingCompletedAt != null;
+}
+
 export async function destroySession(request: Request): Promise<void> {
   const cookie = parseCookie(request.headers.get('Cookie'), SESSION_COOKIE);
   if (!cookie) return;

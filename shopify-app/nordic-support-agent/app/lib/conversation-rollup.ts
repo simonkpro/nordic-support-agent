@@ -72,7 +72,19 @@ export async function purgeExpiredAndRollUp(): Promise<{
     if (outcome !== 'abandoned') {
       const userMessages = extractUserMessages(row.messages);
       if (userMessages.length > 0) {
-        let businessType: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other' | undefined;
+        let businessType:
+          | 'ecommerce'
+          | 'beauty_clinic'
+          | 'dental'
+          | 'healthcare'
+          | 'real_estate'
+          | 'consulting'
+          | 'education'
+          | 'restaurant'
+          | 'physical_retail'
+          | 'service'
+          | 'other'
+          | undefined;
         let businessDescription: string | undefined;
         if (row.assistantId) {
           if (!assistantCache.has(row.assistantId)) {

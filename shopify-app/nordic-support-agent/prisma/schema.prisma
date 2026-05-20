@@ -255,6 +255,11 @@ model Workspace {
   id         String   @id @default(uuid())
   ownerEmail String   @unique
   name       String
+  /** Null = user hasn't finished onboarding; sign-in redirects them to
+   * /onboarding/welcome. Stamped when they complete (or explicitly skip)
+   * the install step. A "Re-run onboarding" link in the dashboard
+   * clears this back to null. */
+  onboardingCompletedAt DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

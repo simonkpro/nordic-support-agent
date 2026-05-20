@@ -36,7 +36,18 @@ export interface CategorizeInput {
    * need the full transcript — the intent shows up early. */
   userMessages: string[];
   /** Coarse business shape, drives the few-shot examples in the prompt. */
-  businessType?: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other';
+  businessType?:
+    | 'ecommerce'
+    | 'beauty_clinic'
+    | 'dental'
+    | 'healthcare'
+    | 'real_estate'
+    | 'consulting'
+    | 'education'
+    | 'restaurant'
+    | 'physical_retail'
+    | 'service'
+    | 'other';
   /** Short merchant-supplied description, e.g. "Beauty clinic in
    * Stockholm, focus on laser treatments." Empty allowed. */
   businessDescription?: string;
@@ -112,12 +123,24 @@ function buildBusinessLine(
     switch (type) {
       case 'ecommerce':
         return 'The business is an e-commerce store. Expect shipping / returns / product questions to dominate.';
-      case 'service':
-        return 'The business sells services (e.g. clinic, dental, consultancy). Expect bookings, service info, and aftercare-like questions; "returns" maps to cancellations.';
+      case 'beauty_clinic':
+        return 'The business is a beauty / aesthetic clinic (laser, injectables, facials, salon services). Expect appointment booking, treatment info, aftercare, and pricing. "returns" maps to cancellations / rebookings; "product" covers treatments.';
+      case 'dental':
+        return 'The business is a dental practice. Expect appointment booking, treatment info (cleanings, fillings, cosmetic), insurance / pricing, and patient-account questions. "returns" maps to cancellations or rebookings.';
+      case 'healthcare':
+        return 'The business is a healthcare provider (physio, chiro, optical, GP, etc.). Expect appointment booking, service info, referrals, insurance / pricing, and patient account questions. "returns" maps to cancellations.';
+      case 'real_estate':
+        return 'The business is a real-estate / housing company. Expect viewing bookings, lease and rent questions, application status, maintenance requests, and tenant-portal account questions. "booking" maps to viewings; "returns" maps to lease termination; "product" covers available apartments.';
+      case 'consulting':
+        return 'The business is a consultancy or professional-services firm. Expect meeting bookings, service / package info, project enquiries, invoicing, and account questions. "returns" maps to cancellations or rescheduling; "product" covers service offerings.';
+      case 'education':
+        return 'The business is an education provider (school, course, tutoring). Expect course / program enquiries, enrollment and scheduling, pricing, student-account questions. "booking" maps to enrollment; "returns" maps to course withdrawal.';
       case 'restaurant':
-        return 'The business is a restaurant. Expect booking, hours, menu, and pricing questions.';
+        return 'The business is a restaurant. Expect reservations, hours, menu, and pricing questions.';
       case 'physical_retail':
-        return 'The business is a physical retail store. Expect product, hours, and pricing questions.';
+        return 'The business is a physical retail store. Expect product availability, hours, and pricing questions; "shipping" may map to click-and-collect.';
+      case 'service':
+        return 'The business sells services. Expect bookings, service info, and account questions; "returns" maps to cancellations.';
       case 'other':
       default:
         return 'The business type is mixed or unspecified. Use the message content to decide.';

@@ -25,7 +25,18 @@ export interface SystemPromptContext {
    */
   business?: {
     companyName?: string;
-    type?: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other';
+    type?:
+      | 'ecommerce'
+      | 'beauty_clinic'
+      | 'dental'
+      | 'healthcare'
+      | 'real_estate'
+      | 'consulting'
+      | 'education'
+      | 'restaurant'
+      | 'physical_retail'
+      | 'service'
+      | 'other';
     ecommerceProductTypes?: string;
     description?: string;
     physicalLocations?: PhysicalLocationContext[];
@@ -78,9 +89,15 @@ const TYPE_LABELS: Record<
   string
 > = {
   ecommerce: 'an e-commerce store',
-  service: 'a service business',
+  beauty_clinic: 'a beauty clinic / aesthetic skincare practice',
+  dental: 'a dental practice',
+  healthcare: 'a healthcare provider (physiotherapy, chiropractic, optical, GP, etc.)',
+  real_estate: 'a real-estate / housing company',
+  consulting: 'a consultancy or professional-services firm',
+  education: 'an education provider (school, courses, tutoring)',
   restaurant: 'a restaurant',
   physical_retail: 'a physical retail store',
+  service: 'a service business',
   other: 'a business',
 };
 

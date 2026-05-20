@@ -107,14 +107,23 @@ export function AdminShell({
         </nav>
         <div style={{ marginTop: 'auto', fontSize: 11, color: PALETTE.muted, lineHeight: 1.5 }}>
           {ownerEmail && (
-            <div style={{ marginBottom: 6 }}>{ownerEmail}</div>
+            <div style={{ marginBottom: 8 }}>{ownerEmail}</div>
           )}
-          <Link
-            to="/auth/signout"
-            style={{ color: PALETTE.muted, textDecoration: 'none' }}
-          >
-            Logga ut
-          </Link>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Link
+              to="/onboarding/reset"
+              style={{ color: PALETTE.muted, textDecoration: 'none' }}
+              title="Nollställ och starta om guiden"
+            >
+              ↻ Kör onboarding igen
+            </Link>
+            <Link
+              to="/auth/signout"
+              style={{ color: PALETTE.muted, textDecoration: 'none' }}
+            >
+              Logga ut
+            </Link>
+          </div>
         </div>
       </aside>
       <main style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>{children}</main>

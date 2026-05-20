@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect, useLoaderData, useSearchParams, Link } from 'react-router';
-import { getWorkspaceFromRequest } from '../lib/workspace-auth';
+import { getWorkspaceFromRequest, isOnboardingComplete } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant } from '../lib/assistants';
 import {
   AdminShell,
@@ -53,7 +53,19 @@ interface LoaderData {
   heatmap: ActivityHeatmap;
   responseTime: ResponseTimeStats;
   recentEscalations: RecentEscalation[];
-  businessType: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other';
+  businessType:
+    | 'ecommerce'
+    | 'beauty_clinic'
+    | 'dental'
+    | 'healthcare'
+    | 'real_estate'
+    | 'consulting'
+    | 'education'
+    | 'restaurant'
+    | 'physical_retail'
+    | 'service'
+    | 'other';
+  onboardingDone: boolean;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
@@ -68,13 +80,15 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const from = new Date(to.getTime() - preset.days * 24 * 60 * 60 * 1000);
 
-  const [kpis, heatmap, responseTime, recentEscalations, defaultAssistant] = await Promise.all([
-    getOverview({ shop, from, to }),
-    getActivityHeatmap(shop, from, to),
-    getResponseTimeStats(shop, from, to),
-    getRecentEscalations(shop, 5),
-    loadOrCreateDefaultAssistant(shop),
-  ]);
+  const [kpis, heatmap, responseTime, recentEscalations, defaultAssistant, onboardingDone] =
+    await Promise.all([
+      getOverview({ shop, from, to }),
+      getActivityHeatmap(shop, from, to),
+      getResponseTimeStats(shop, from, to),
+      getRecentEscalations(shop, 5),
+      loadOrCreateDefaultAssistant(shop),
+      session ? isOnboardingComplete(session.workspaceId) : Promise.resolve(true),
+    ]);
 
   return {
     workspaceName: session?.workspaceName ?? 'Preview shop',
@@ -85,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
     responseTime,
     recentEscalations,
     businessType: defaultAssistant.config.business.type,
+    onboardingDone,
   };
 };
 
@@ -105,6 +120,7 @@ export default function InsightsIndex() {
       workspaceName={data.workspaceName}
       ownerEmail={data.ownerEmail}
     >
+      {!data.onboardingDone && <ContinueSetupBanner />}
       <PageHeader
         title="Översikt"
         subtitle="Vad kunderna frågar om, hur boten hanterar dem, och när de är online."
@@ -232,6 +248,65 @@ export default function InsightsIndex() {
         Aggregerad data sparas tills vidare · Konversationsinnehåll sparas i 24 timmar · Ingen personlig data i aggregat
       </p>
     </AdminShell>
+  );
+}
+
+function ContinueSetupBanner() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        padding: '16px 20px',
+        background: SHELL_TOKENS.card,
+        border: `1px solid ${SHELL_TOKENS.ink}`,
+        borderRadius: 10,
+        marginBottom: 24,
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          background: SHELL_TOKENS.brand,
+          color: '#fff',
+          display: 'grid',
+          placeItems: 'center',
+          fontFamily:
+            '"JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+          fontSize: 13,
+          fontWeight: 600,
+          flexShrink: 0,
+        }}
+      >
+        ⤴
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>
+          Fortsätt inställningen — widgeten är inte installerad än
+        </div>
+        <div style={{ fontSize: 12.5, color: SHELL_TOKENS.muted }}>
+          Några steg kvar innan boten är live på din sajt. Det tar ~3 minuter.
+        </div>
+      </div>
+      <Link
+        to="/onboarding/welcome"
+        style={{
+          background: SHELL_TOKENS.ink,
+          color: '#fff',
+          padding: '10px 16px',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 500,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Fortsätt →
+      </Link>
+    </div>
   );
 }
 
@@ -507,10 +582,7 @@ function languageName(code: string): string {
  * is stable; this just shapes the dashboard copy so a clinic sees
  * "Bookings" while a webshop sees "Shipping".
  */
-function categoryLabel(
-  key: string,
-  type: 'ecommerce' | 'service' | 'restaurant' | 'physical_retail' | 'other',
-): string {
+function categoryLabel(key: string, type: LoaderData['businessType']): string {
   const baseline: Record<string, string> = {
     booking: 'Bokningar',
     shipping: 'Leveranser',
@@ -523,34 +595,73 @@ function categoryLabel(
     general: 'Allmän info',
     other: 'Övrigt',
   };
-  if (type === 'service') {
-    return {
-      ...baseline,
-      booking: 'Tidsbokningar',
-      returns: 'Avbokningar',
-      product: 'Behandlingar',
-      service_info: 'Tjänsteinfo',
-      account: 'Kundkonton',
-    }[key] ?? baseline[key] ?? key;
-  }
-  if (type === 'restaurant') {
-    return {
-      ...baseline,
-      booking: 'Bordsbokningar',
-      returns: 'Avbokningar',
-      product: 'Meny',
-      service_info: 'Catering / evenemang',
-    }[key] ?? baseline[key] ?? key;
-  }
-  if (type === 'physical_retail') {
-    return {
-      ...baseline,
-      shipping: 'Hämta i butik',
-      service_info: 'Tjänster i butik',
-    }[key] ?? baseline[key] ?? key;
-  }
-  return baseline[key] ?? key;
+  const overrides = VERTICAL_OVERRIDES[type] ?? {};
+  return overrides[key] ?? baseline[key] ?? key;
 }
+
+const VERTICAL_OVERRIDES: Record<LoaderData['businessType'], Record<string, string>> = {
+  ecommerce: {},
+  beauty_clinic: {
+    booking: 'Tidsbokningar',
+    returns: 'Avbokningar',
+    product: 'Behandlingar',
+    service_info: 'Behandlingsinfo',
+    account: 'Kundkonton',
+  },
+  dental: {
+    booking: 'Tidsbokningar',
+    returns: 'Avbokningar',
+    product: 'Behandlingar',
+    service_info: 'Behandlingsinfo',
+    account: 'Patientkonton',
+  },
+  healthcare: {
+    booking: 'Tidsbokningar',
+    returns: 'Avbokningar',
+    product: 'Tjänster',
+    service_info: 'Tjänsteinfo',
+    account: 'Patientkonton',
+  },
+  real_estate: {
+    booking: 'Visningar',
+    returns: 'Uppsägningar',
+    product: 'Lägenheter',
+    service_info: 'Fastighetsinfo',
+    account: 'Hyresgästportal',
+  },
+  consulting: {
+    booking: 'Möten',
+    returns: 'Omplaneringar',
+    product: 'Tjänster',
+    service_info: 'Upplägg & metod',
+    account: 'Klientportal',
+  },
+  education: {
+    booking: 'Anmälan',
+    returns: 'Avhopp',
+    product: 'Kurser',
+    service_info: 'Utbildningsinfo',
+    account: 'Studentkonton',
+  },
+  restaurant: {
+    booking: 'Bordsbokningar',
+    returns: 'Avbokningar',
+    product: 'Meny',
+    service_info: 'Catering / evenemang',
+  },
+  physical_retail: {
+    shipping: 'Hämta i butik',
+    service_info: 'Tjänster i butik',
+  },
+  service: {
+    booking: 'Tidsbokningar',
+    returns: 'Avbokningar',
+    product: 'Behandlingar',
+    service_info: 'Tjänsteinfo',
+    account: 'Kundkonton',
+  },
+  other: {},
+};
 
 function formatMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;

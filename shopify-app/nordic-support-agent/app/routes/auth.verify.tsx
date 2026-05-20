@@ -1,6 +1,10 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
-import { buildSessionCookie, completeSignIn } from '../lib/workspace-auth.ts';
+import {
+  buildSessionCookie,
+  completeSignIn,
+  isOnboardingComplete,
+} from '../lib/workspace-auth.ts';
 
 /**
  * Magic-link consumer. The signin email points here with the email and
@@ -24,7 +28,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return htmlPage(reasons[result.reason] ?? 'Unable to sign you in.', 410);
   }
 
-  return redirect('/preview/chat', {
+  // First-time sign-ins land in the onboarding flow; returners go
+  // straight to the dashboard. Either path drops the cookie first.
+  const done = await isOnboardingComplete(result.session.workspaceId);
+  return redirect(done ? '/insights' : '/onboarding/welcome', {
     headers: { 'Set-Cookie': buildSessionCookie(result.cookieValue, result.maxAgeSeconds) },
   });
 };

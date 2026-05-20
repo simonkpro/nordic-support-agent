@@ -35,9 +35,15 @@ export type PhysicalLocation = z.infer<typeof PhysicalLocationSchema>;
 
 export const BusinessTypeEnum = z.enum([
   'ecommerce',
-  'service',
+  'beauty_clinic',
+  'dental',
+  'healthcare',
+  'real_estate',
+  'consulting',
+  'education',
   'restaurant',
   'physical_retail',
+  'service',
   'other',
 ]);
 export type BusinessType = z.infer<typeof BusinessTypeEnum>;

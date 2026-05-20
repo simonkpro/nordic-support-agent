@@ -960,9 +960,15 @@ function PreviewBody({
               style={inputStyle}
             >
               <option value="ecommerce">E-handel</option>
-              <option value="service">Tjänsteföretag</option>
+              <option value="beauty_clinic">Skönhetsklinik / spa</option>
+              <option value="dental">Tandvård</option>
+              <option value="healthcare">Vårdgivare (fysio, kiro, optik, …)</option>
+              <option value="real_estate">Fastighetsbolag / hyresvärd</option>
+              <option value="consulting">Konsultverksamhet</option>
+              <option value="education">Utbildning / kurser</option>
               <option value="restaurant">Restaurang / café</option>
               <option value="physical_retail">Fysisk butik</option>
+              <option value="service">Övrig tjänst</option>
               <option value="other">Annat</option>
             </select>
           </Field>
