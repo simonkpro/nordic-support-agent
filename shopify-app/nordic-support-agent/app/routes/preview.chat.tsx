@@ -365,8 +365,27 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
       sendFill: formData.get('widget.sendFill') ?? undefined,
       sendIconColor: formData.get('widget.sendIconColor') ?? undefined,
       placeholder: formData.get('widget.placeholder') ?? undefined,
-      width: Number(formData.get('widget.width') ?? 400),
-      height: Number(formData.get('widget.height') ?? 540),
+      width: Number(formData.get('widget.width') ?? 380),
+      height: Number(formData.get('widget.height') ?? 600),
+      launcherSize: Number(formData.get('widget.launcherSize') ?? 60),
+      panelRadius: Number(formData.get('widget.panelRadius') ?? 20),
+      bubbleRadius: Number(formData.get('widget.bubbleRadius') ?? 18),
+      fontFamily:
+        formData.get('widget.fontFamily') ??
+        '"Geist", system-ui, -apple-system, sans-serif',
+      fontSizeBase: Number(formData.get('widget.fontSizeBase') ?? 15),
+      showAvatar: formData.get('widget.showAvatar') === 'true',
+      showDot: formData.get('widget.showDot') === 'true',
+      theme: formData.get('widget.theme') ?? undefined,
+      shadow: formData.get('widget.shadow') ?? undefined,
+      subtitle: formData.get('widget.subtitle') ?? '',
+      surfaces: {
+        bg: formData.get('widget.surfaces.bg') ?? '',
+        ink: formData.get('widget.surfaces.ink') ?? '',
+        bubbleInBg: formData.get('widget.surfaces.bubbleInBg') ?? '',
+        bubbleInInk: formData.get('widget.surfaces.bubbleInInk') ?? '',
+        inputBg: formData.get('widget.surfaces.inputBg') ?? '',
+      },
       // Newline-separated in the textarea; trim + drop empties before
       // handing to Zod (which expects string[]).
       allowedOrigins: String(formData.get('widget.allowedOrigins') ?? '')
@@ -382,10 +401,17 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     await updateAssistant(id, { config: candidate });
     return { ok: true, intent: 'save-settings' };
   } catch (err) {
-    const detail =
+    // Format Zod issues as a short, human-readable list instead of raw
+    // JSON so the dashboard's error toast is intelligible.
+    const issues =
       err && typeof err === 'object' && 'issues' in err
-        ? JSON.stringify((err as { issues: unknown }).issues)
-        : (err as Error).message;
+        ? ((err as { issues: Array<{ path: Array<string | number>; message: string }> }).issues)
+        : null;
+    const detail = issues
+      ? issues
+          .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+          .join('; ')
+      : (err as Error).message;
     return { ok: false, intent: 'save-settings', error: detail };
   }
 };
@@ -517,6 +543,22 @@ function PreviewBody({
   const [allowedOrigins, setAllowedOrigins] = useState(
     active.config.widget.allowedOrigins.join('\n'),
   );
+  // Design's extra tokens
+  const [launcherSize, setLauncherSize] = useState(active.config.widget.launcherSize);
+  const [panelRadius, setPanelRadius] = useState(active.config.widget.panelRadius);
+  const [bubbleRadius, setBubbleRadius] = useState(active.config.widget.bubbleRadius);
+  const [fontFamily, setFontFamily] = useState(active.config.widget.fontFamily);
+  const [fontSizeBase, setFontSizeBase] = useState(active.config.widget.fontSizeBase);
+  const [showAvatar, setShowAvatar] = useState(active.config.widget.showAvatar);
+  const [showDot, setShowDot] = useState(active.config.widget.showDot);
+  const [theme, setTheme] = useState<AssistantConfig['widget']['theme']>(active.config.widget.theme);
+  const [shadow, setShadow] = useState<AssistantConfig['widget']['shadow']>(active.config.widget.shadow);
+  const [subtitle, setSubtitle] = useState(active.config.widget.subtitle);
+  const [surfaceBg, setSurfaceBg] = useState(active.config.widget.surfaces.bg);
+  const [surfaceInk, setSurfaceInk] = useState(active.config.widget.surfaces.ink);
+  const [bubbleInBg, setBubbleInBg] = useState(active.config.widget.surfaces.bubbleInBg);
+  const [bubbleInInk, setBubbleInInk] = useState(active.config.widget.surfaces.bubbleInInk);
+  const [inputBg, setInputBg] = useState(active.config.widget.surfaces.inputBg);
 
   // Assistant rename
   const [renameValue, setRenameValue] = useState(active.name);
@@ -527,6 +569,78 @@ function PreviewBody({
   useEffect(() => {
     setContainer(containerRef.current);
   }, []);
+
+  // Bumped whenever a save-settings round-trip completes successfully, so
+  // the widget preview iframe reloads and the new /api/widget-config
+  // response (colors, shapes, tokens) gets picked up.
+  const [previewVersion, setPreviewVersion] = useState(0);
+  // Iframe ref — we postMessage token updates here on every state change
+  // so the widget previews live without requiring a Save round-trip.
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  // Bumped when the iframe finishes loading, so the live-tokens effect
+  // re-fires and pushes the current snapshot into a freshly mounted widget.
+  const [iframeLoadTick, setIframeLoadTick] = useState(0);
+  useEffect(() => {
+    if (
+      fetcher.state === 'idle' &&
+      fetcher.data?.ok &&
+      fetcher.data.intent === 'save-settings'
+    ) {
+      setPreviewVersion((v) => v + 1);
+    }
+  }, [fetcher.state, fetcher.data]);
+
+  // Live token postMessage: whenever any widget-shaped state changes,
+  // push the resolved tokens into the iframe so the preview reflects
+  // edits instantly (no Save round-trip required).
+  useEffect(() => {
+    const win = previewIframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      {
+        type: 'nordic-support:tokens',
+        tokens: {
+          primaryColor,
+          accentColor,
+          launcherIconColor,
+          sendIconColor,
+          theme,
+          shadow,
+          launcherShape,
+          sendShape,
+          sendFill,
+          iconStyle,
+          sendIcon,
+          width: widgetWidth,
+          height: widgetHeight,
+          launcherSize,
+          panelRadius,
+          bubbleRadius,
+          fontFamily,
+          fontSizeBase,
+          surfaceBg,
+          surfaceInk,
+          bubbleInBg,
+          bubbleInInk,
+          inputBg,
+          agentName,
+          subtitle,
+          placeholder,
+          showAvatar,
+          showDot,
+        },
+      },
+      '*',
+    );
+  }, [
+    primaryColor, accentColor, launcherIconColor, sendIconColor,
+    theme, shadow, launcherShape, sendShape, sendFill, iconStyle, sendIcon,
+    widgetWidth, widgetHeight, launcherSize, panelRadius, bubbleRadius,
+    fontFamily, fontSizeBase,
+    surfaceBg, surfaceInk, bubbleInBg, bubbleInInk, inputBg,
+    agentName, subtitle, placeholder, showAvatar, showDot,
+    previewVersion, iframeLoadTick,
+  ]);
 
   // Restart-chat / navigate-to behavior after fetcher resolves
   const [restartAfterSave, setRestartAfterSave] = useState(false);
@@ -570,7 +684,10 @@ function PreviewBody({
     form.set('business.sitemapUrl', sitemapUrl);
     form.set('business.sitemapExcludeGlobs', sitemapExcludeGlobs);
     // Agent — Step 2
-    form.set('agent.name', agentName);
+    // Agent name is required (min 1 char). Coerce an empty value to a
+    // safe default so a half-edited title in the Widget customizer
+    // doesn't fail validation and surface a Zod error toast.
+    form.set('agent.name', agentName.trim() || 'Support');
     form.set('agent.tone', agentTone);
     form.set('agent.greeting', agentGreeting);
     form.set('agent.signature', agentSignature);
@@ -604,6 +721,21 @@ function PreviewBody({
     form.set('widget.placeholder', placeholder);
     form.set('widget.width', String(widgetWidth));
     form.set('widget.height', String(widgetHeight));
+    form.set('widget.launcherSize', String(launcherSize));
+    form.set('widget.panelRadius', String(panelRadius));
+    form.set('widget.bubbleRadius', String(bubbleRadius));
+    form.set('widget.fontFamily', fontFamily);
+    form.set('widget.fontSizeBase', String(fontSizeBase));
+    form.set('widget.showAvatar', String(showAvatar));
+    form.set('widget.showDot', String(showDot));
+    form.set('widget.theme', theme);
+    form.set('widget.shadow', shadow);
+    form.set('widget.subtitle', subtitle);
+    form.set('widget.surfaces.bg', surfaceBg);
+    form.set('widget.surfaces.ink', surfaceInk);
+    form.set('widget.surfaces.bubbleInBg', bubbleInBg);
+    form.set('widget.surfaces.bubbleInInk', bubbleInInk);
+    form.set('widget.surfaces.inputBg', inputBg);
     form.set('widget.allowedOrigins', allowedOrigins);
     return form;
   }
@@ -1286,184 +1418,36 @@ function PreviewBody({
             onClick={() => toggle('widget')}
           />
           {openSection === 'widget' && (
-          <>
-          <Field label="Primärfärg (header, bubbla, sänd-knapp) — live">
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
-              />
-              <input
-                type="text"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
-              />
-            </div>
-          </Field>
-
-          <Field label="Accentfärg (fokus-ramar)">
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
-              />
-              <input
-                type="text"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
-              />
-            </div>
-          </Field>
-
-          <Field label="Launcher-ikon (minimerat läge)">
-            <select
-              value={iconStyle}
-              onChange={(e) =>
-                setIconStyle(e.target.value as AssistantConfig['widget']['iconStyle'])
-              }
-              style={inputStyle}
-            >
-              <option value="bot">Bot (standard)</option>
-              <option value="chat_bubble">Chattbubbla</option>
-              <option value="sparkle">Glitter</option>
-              <option value="help">Frågetecken</option>
-            </select>
-          </Field>
-
-          <Field label="Launcher-form">
-            <select
-              value={launcherShape}
-              onChange={(e) =>
-                setLauncherShape(
-                  e.target.value as AssistantConfig['widget']['launcherShape'],
-                )
-              }
-              style={inputStyle}
-            >
-              <option value="circle">Cirkel (standard)</option>
-              <option value="rounded">Rundad kvadrat</option>
-              <option value="square">Skarp kvadrat</option>
-            </select>
-          </Field>
-
-          <Field label="Launcher-ikonens färg">
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={launcherIconColor}
-                onChange={(e) => setLauncherIconColor(e.target.value)}
-                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
-              />
-              <input
-                type="text"
-                value={launcherIconColor}
-                onChange={(e) => setLauncherIconColor(e.target.value)}
-                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
-              />
-            </div>
-          </Field>
-
-          <Field label="Placeholder i textfältet">
-            <input
-              type="text"
-              value={placeholder}
-              maxLength={80}
-              onChange={(e) => setPlaceholder(e.target.value)}
-              placeholder="Type your message…"
-              style={inputStyle}
-            />
-          </Field>
-
-          <Field label="Sänd-ikon">
-            <select
-              value={sendIcon}
-              onChange={(e) =>
-                setSendIcon(e.target.value as AssistantConfig['widget']['sendIcon'])
-              }
-              style={inputStyle}
-            >
-              <option value="arrow_up">Pil upp (standard)</option>
-              <option value="arrow_right">Pil höger</option>
-              <option value="send_plane">Pappersflygplan</option>
-            </select>
-          </Field>
-
-          <Field label="Sänd-knappens form">
-            <select
-              value={sendShape}
-              onChange={(e) =>
-                setSendShape(e.target.value as AssistantConfig['widget']['sendShape'])
-              }
-              style={inputStyle}
-            >
-              <option value="rounded">Rundad (standard)</option>
-              <option value="circle">Cirkel</option>
-              <option value="square">Skarp kvadrat</option>
-            </select>
-          </Field>
-
-          <Field label="Sänd-knappens fyllning">
-            <select
-              value={sendFill}
-              onChange={(e) =>
-                setSendFill(e.target.value as AssistantConfig['widget']['sendFill'])
-              }
-              style={inputStyle}
-            >
-              <option value="solid">Fylld (standard)</option>
-              <option value="outline">Endast kontur</option>
-              <option value="ghost">Genomskinlig</option>
-            </select>
-          </Field>
-
-          <Field label="Sänd-ikonens färg">
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={sendIconColor}
-                onChange={(e) => setSendIconColor(e.target.value)}
-                style={{ ...inputStyle, width: 64, height: 36, padding: 2 }}
-              />
-              <input
-                type="text"
-                value={sendIconColor}
-                onChange={(e) => setSendIconColor(e.target.value)}
-                style={{ ...inputStyle, width: 120, marginLeft: 8 }}
-              />
-            </div>
-          </Field>
-
-          <Field label={`Bredd: ${widgetWidth} px`}>
-            <input
-              type="range"
-              min={300}
-              max={600}
-              step={10}
-              value={widgetWidth}
-              onChange={(e) => setWidgetWidth(Number(e.target.value))}
-              style={{ width: '100%' }}
-            />
-          </Field>
-
-          <Field label={`Höjd: ${widgetHeight} px`}>
-            <input
-              type="range"
-              min={400}
-              max={800}
-              step={10}
-              value={widgetHeight}
-              onChange={(e) => setWidgetHeight(Number(e.target.value))}
-              style={{ width: '100%' }}
-            />
-          </Field>
-
-          </>
+          <WidgetCustomizer
+            primaryColor={primaryColor} setPrimaryColor={setPrimaryColor}
+            accentColor={accentColor} setAccentColor={setAccentColor}
+            launcherIconColor={launcherIconColor} setLauncherIconColor={setLauncherIconColor}
+            sendIconColor={sendIconColor} setSendIconColor={setSendIconColor}
+            iconStyle={iconStyle} setIconStyle={setIconStyle}
+            launcherShape={launcherShape} setLauncherShape={setLauncherShape}
+            sendIcon={sendIcon} setSendIcon={setSendIcon}
+            sendShape={sendShape} setSendShape={setSendShape}
+            sendFill={sendFill} setSendFill={setSendFill}
+            placeholder={placeholder} setPlaceholder={setPlaceholder}
+            widgetWidth={widgetWidth} setWidgetWidth={setWidgetWidth}
+            widgetHeight={widgetHeight} setWidgetHeight={setWidgetHeight}
+            launcherSize={launcherSize} setLauncherSize={setLauncherSize}
+            panelRadius={panelRadius} setPanelRadius={setPanelRadius}
+            bubbleRadius={bubbleRadius} setBubbleRadius={setBubbleRadius}
+            fontFamily={fontFamily} setFontFamily={setFontFamily}
+            fontSizeBase={fontSizeBase} setFontSizeBase={setFontSizeBase}
+            showAvatar={showAvatar} setShowAvatar={setShowAvatar}
+            showDot={showDot} setShowDot={setShowDot}
+            theme={theme} setTheme={setTheme}
+            shadow={shadow} setShadow={setShadow}
+            subtitle={subtitle} setSubtitle={setSubtitle}
+            agentName={agentName} setAgentName={setAgentName}
+            surfaceBg={surfaceBg} setSurfaceBg={setSurfaceBg}
+            surfaceInk={surfaceInk} setSurfaceInk={setSurfaceInk}
+            bubbleInBg={bubbleInBg} setBubbleInBg={setBubbleInBg}
+            bubbleInInk={bubbleInInk} setBubbleInInk={setBubbleInInk}
+            inputBg={inputBg} setInputBg={setInputBg}
+          />
           )}
 
           <SectionHeader
@@ -1789,30 +1773,30 @@ function PreviewBody({
               } as React.CSSProperties
             }
           >
-            {container && (
-              <ChatRuntimeProvider
-                apiUrl="/api/chat/stream"
-                widgetToken={widgetToken}
-                conversationId={conversationId}
-                assistantId={active.id}
-              >
-                <AssistantModal
-                  container={container}
-                  defaultOpen
-                  width={widgetWidth}
-                  height={widgetHeight}
-                  greeting={agentGreeting}
-                  iconStyle={iconStyle}
-                  launcherShape={launcherShape}
-                  launcherIconColor={launcherIconColor}
-                  placeholder={placeholder}
-                  sendIcon={sendIcon}
-                  sendShape={sendShape}
-                  sendFill={sendFill}
-                  sendIconColor={sendIconColor}
-                />
-              </ChatRuntimeProvider>
-            )}
+            {/* Render the production widget.js inside an iframe so what
+             * appears here is byte-identical to what merchants embed on
+             * their site. The iframe sandboxes the widget's fixed-position
+             * launcher / panel to the right pane, and reloads on every
+             * settings save so colour/shape/copy edits show immediately. */}
+            <iframe
+              ref={previewIframeRef}
+              key={previewVersion}
+              src={`/widget-test.html?token=${encodeURIComponent(widgetToken)}&open=1`}
+              title="Widget preview"
+              onLoad={() => {
+                // Push the current token snapshot once the widget has
+                // actually mounted — initial mount messaging would race
+                // the iframe load otherwise.
+                setIframeLoadTick((n) => n + 1);
+              }}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 0,
+                background: 'transparent',
+              }}
+            />
+            {container ? null : null}
           </div>
         </div>
       </div>
@@ -2126,6 +2110,401 @@ const ghostButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
   textDecoration: 'underline',
 };
+
+// ============================================================
+// Widget customizer — design-style left rail
+// Quick presets, Theme & shadow, Colors, Surfaces, Shapes, Sizes,
+// Typography, Header content. Mirrors the layout from the Claude
+// Design source so anything live-tunable in the design is live-
+// tunable here.
+// ============================================================
+
+type WidgetPreset = {
+  name: string;
+  brand: string;
+  accent: string;
+  licon: string;
+  sicon: string;
+  theme: 'light' | 'dark';
+  font?: string;
+  surfaces?: {
+    bg?: string;
+    ink?: string;
+    bubbleInBg?: string;
+    bubbleInInk?: string;
+    inputBg?: string;
+  };
+};
+
+const WIDGET_PRESETS: WidgetPreset[] = [
+  { name: 'Cream',  brand: '#1a1a1a', accent: '#e85d4a', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+  { name: 'Tandem', brand: '#2c4a3e', accent: '#c8a87a', licon: '#f5f1ea', sicon: '#f5f1ea', theme: 'light',
+    font: '"Inter Tight", system-ui, sans-serif',
+    surfaces: { bg: '#f7f4ee', ink: '#1f2823', bubbleInBg: '#ece6d8', bubbleInInk: '#1f2823', inputBg: '#f0ebde' } },
+  { name: 'Cobalt', brand: '#1e40af', accent: '#fbbf24', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+  { name: 'Forest', brand: '#14532d', accent: '#84cc16', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+  { name: 'Ember',  brand: '#9a3412', accent: '#fde68a', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+  { name: 'Violet', brand: '#6d28d9', accent: '#22d3ee', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+  { name: 'Slate',  brand: '#0f172a', accent: '#38bdf8', licon: '#ffffff', sicon: '#ffffff', theme: 'dark'  },
+  { name: 'Plum',   brand: '#3b0764', accent: '#f0abfc', licon: '#ffffff', sicon: '#ffffff', theme: 'dark'  },
+  { name: 'Carbon', brand: '#0a0a0a', accent: '#22c55e', licon: '#22c55e', sicon: '#0a0a0a', theme: 'dark'  },
+];
+
+const FONT_CHOICES: Array<{ label: string; value: string }> = [
+  { label: 'Geist (default)', value: '"Geist", system-ui, -apple-system, sans-serif' },
+  { label: 'Inter Tight', value: '"Inter Tight", system-ui, sans-serif' },
+  { label: 'IBM Plex Sans', value: '"IBM Plex Sans", system-ui, sans-serif' },
+  { label: 'System UI', value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
+];
+
+interface WidgetCustomizerProps {
+  primaryColor: string; setPrimaryColor: (v: string) => void;
+  accentColor: string; setAccentColor: (v: string) => void;
+  launcherIconColor: string; setLauncherIconColor: (v: string) => void;
+  sendIconColor: string; setSendIconColor: (v: string) => void;
+  iconStyle: AssistantConfig['widget']['iconStyle']; setIconStyle: (v: AssistantConfig['widget']['iconStyle']) => void;
+  launcherShape: AssistantConfig['widget']['launcherShape']; setLauncherShape: (v: AssistantConfig['widget']['launcherShape']) => void;
+  sendIcon: AssistantConfig['widget']['sendIcon']; setSendIcon: (v: AssistantConfig['widget']['sendIcon']) => void;
+  sendShape: AssistantConfig['widget']['sendShape']; setSendShape: (v: AssistantConfig['widget']['sendShape']) => void;
+  sendFill: AssistantConfig['widget']['sendFill']; setSendFill: (v: AssistantConfig['widget']['sendFill']) => void;
+  placeholder: string; setPlaceholder: (v: string) => void;
+  widgetWidth: number; setWidgetWidth: (v: number) => void;
+  widgetHeight: number; setWidgetHeight: (v: number) => void;
+  launcherSize: number; setLauncherSize: (v: number) => void;
+  panelRadius: number; setPanelRadius: (v: number) => void;
+  bubbleRadius: number; setBubbleRadius: (v: number) => void;
+  fontFamily: string; setFontFamily: (v: string) => void;
+  fontSizeBase: number; setFontSizeBase: (v: number) => void;
+  showAvatar: boolean; setShowAvatar: (v: boolean) => void;
+  showDot: boolean; setShowDot: (v: boolean) => void;
+  theme: AssistantConfig['widget']['theme']; setTheme: (v: AssistantConfig['widget']['theme']) => void;
+  shadow: AssistantConfig['widget']['shadow']; setShadow: (v: AssistantConfig['widget']['shadow']) => void;
+  subtitle: string; setSubtitle: (v: string) => void;
+  agentName: string; setAgentName: (v: string) => void;
+  surfaceBg: string; setSurfaceBg: (v: string) => void;
+  surfaceInk: string; setSurfaceInk: (v: string) => void;
+  bubbleInBg: string; setBubbleInBg: (v: string) => void;
+  bubbleInInk: string; setBubbleInInk: (v: string) => void;
+  inputBg: string; setInputBg: (v: string) => void;
+}
+
+function WidgetCustomizer(p: WidgetCustomizerProps) {
+  const applyPreset = (preset: WidgetPreset) => {
+    p.setPrimaryColor(preset.brand);
+    p.setAccentColor(preset.accent);
+    p.setLauncherIconColor(preset.licon);
+    p.setSendIconColor(preset.sicon);
+    p.setTheme(preset.theme);
+    if (preset.font) p.setFontFamily(preset.font);
+    // Surface overrides: explicit values win; empty resets to theme defaults.
+    p.setSurfaceBg(preset.surfaces?.bg ?? '');
+    p.setSurfaceInk(preset.surfaces?.ink ?? '');
+    p.setBubbleInBg(preset.surfaces?.bubbleInBg ?? '');
+    p.setBubbleInInk(preset.surfaces?.bubbleInInk ?? '');
+    p.setInputBg(preset.surfaces?.inputBg ?? '');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <CustomizerGroup title="Quick presets">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          {WIDGET_PRESETS.map((preset) => {
+            const active = p.primaryColor.toLowerCase() === preset.brand.toLowerCase();
+            return (
+              <button
+                key={preset.name}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  gap: 6, padding: 8, border: active ? '1px solid #111827' : '1px solid #e5e7eb',
+                  borderRadius: 10, background: '#fff', cursor: 'pointer', fontSize: 11,
+                  color: '#374151', fontFamily: 'inherit',
+                }}
+              >
+                <span style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: preset.brand,
+                  border: '1px solid ' + (preset.theme === 'dark' ? '#334155' : '#e5e7eb'),
+                  position: 'relative', display: 'inline-block',
+                }}>
+                  <span style={{
+                    position: 'absolute', right: -2, bottom: -2,
+                    width: 12, height: 12, borderRadius: '50%',
+                    background: preset.accent, border: '2px solid #fff',
+                  }} />
+                </span>
+                {preset.name}
+              </button>
+            );
+          })}
+        </div>
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Theme & shadow">
+        <Row label="theme">
+          <Segmented
+            value={p.theme}
+            options={[{ v: 'light', l: 'light' }, { v: 'dark', l: 'dark' }]}
+            onChange={(v) => p.setTheme(v as AssistantConfig['widget']['theme'])}
+          />
+        </Row>
+        <Row label="shadow">
+          <Segmented
+            value={p.shadow}
+            options={[{ v: 'none', l: 'none' }, { v: 'subtle', l: 'subtle' }, { v: 'medium', l: 'medium' }, { v: 'strong', l: 'strong' }]}
+            onChange={(v) => p.setShadow(v as AssistantConfig['widget']['shadow'])}
+          />
+        </Row>
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Colors">
+        <ColorRow label="brand"         value={p.primaryColor}      onChange={p.setPrimaryColor} />
+        <ColorRow label="accent"        value={p.accentColor}       onChange={p.setAccentColor} />
+        <ColorRow label="launcher icon" value={p.launcherIconColor} onChange={p.setLauncherIconColor} />
+        <ColorRow label="send icon"     value={p.sendIconColor}     onChange={p.setSendIconColor} />
+      </CustomizerGroup>
+
+      <CustomizerGroup
+        title="Surfaces"
+        hint="Override theme defaults. Switching theme resets these."
+      >
+        <ColorRow label="panel bg"        value={p.surfaceBg}    onChange={p.setSurfaceBg}   placeholder="#ffffff" />
+        <ColorRow label="panel text"      value={p.surfaceInk}   onChange={p.setSurfaceInk}  placeholder="#18140f" />
+        <ColorRow label="AI bubble"       value={p.bubbleInBg}   onChange={p.setBubbleInBg}  placeholder="#f1ebde" />
+        <ColorRow label="AI bubble text"  value={p.bubbleInInk}  onChange={p.setBubbleInInk} placeholder="#18140f" />
+        <ColorRow label="input bg"        value={p.inputBg}      onChange={p.setInputBg}     placeholder="#faf6ee" />
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Shapes">
+        <Row label="launcher">
+          <Segmented
+            value={p.launcherShape}
+            options={[{ v: 'circle', l: 'circle' }, { v: 'rounded', l: 'rounded' }, { v: 'square', l: 'square' }]}
+            onChange={(v) => p.setLauncherShape(v as AssistantConfig['widget']['launcherShape'])}
+          />
+        </Row>
+        <Row label="send">
+          <Segmented
+            value={p.sendShape}
+            options={[{ v: 'circle', l: 'circle' }, { v: 'rounded', l: 'rounded' }, { v: 'square', l: 'square' }]}
+            onChange={(v) => p.setSendShape(v as AssistantConfig['widget']['sendShape'])}
+          />
+        </Row>
+        <Row label="send fill">
+          <Segmented
+            value={p.sendFill}
+            options={[{ v: 'solid', l: 'solid' }, { v: 'outline', l: 'outline' }, { v: 'ghost', l: 'ghost' }]}
+            onChange={(v) => p.setSendFill(v as AssistantConfig['widget']['sendFill'])}
+          />
+        </Row>
+        <Row label="icon style">
+          <Segmented
+            value={p.iconStyle}
+            options={[
+              { v: 'bot', l: 'bot' },
+              { v: 'chat_bubble', l: 'chat' },
+              { v: 'sparkle', l: 'sparkle' },
+              { v: 'help', l: 'help' },
+            ]}
+            onChange={(v) => p.setIconStyle(v as AssistantConfig['widget']['iconStyle'])}
+          />
+        </Row>
+        <Row label="send icon">
+          <Segmented
+            value={p.sendIcon}
+            options={[
+              { v: 'arrow_up', l: 'arrow up' },
+              { v: 'arrow_right', l: 'arrow →' },
+              { v: 'send_plane', l: 'plane' },
+            ]}
+            onChange={(v) => p.setSendIcon(v as AssistantConfig['widget']['sendIcon'])}
+          />
+        </Row>
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Sizes">
+        <SliderRow label="panel width"    value={p.widgetWidth}  min={300} max={600} step={10} unit="px" onChange={p.setWidgetWidth} />
+        <SliderRow label="panel height"   value={p.widgetHeight} min={400} max={800} step={10} unit="px" onChange={p.setWidgetHeight} />
+        <SliderRow label="launcher size"  value={p.launcherSize} min={40}  max={96}  step={2}  unit="px" onChange={p.setLauncherSize} />
+        <SliderRow label="panel radius"   value={p.panelRadius}  min={0}   max={36}  step={1}  unit="px" onChange={p.setPanelRadius} />
+        <SliderRow label="bubble radius"  value={p.bubbleRadius} min={0}   max={28}  step={1}  unit="px" onChange={p.setBubbleRadius} />
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Typography">
+        <Row label="font family">
+          <select
+            value={p.fontFamily}
+            onChange={(e) => p.setFontFamily(e.target.value)}
+            style={{ ...inputStyle, width: '100%' }}
+          >
+            {FONT_CHOICES.map((f) => (
+              <option key={f.label} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </Row>
+        <SliderRow label="base size" value={p.fontSizeBase} min={12} max={20} step={1} unit="px" onChange={p.setFontSizeBase} />
+      </CustomizerGroup>
+
+      <CustomizerGroup title="Header content">
+        <Row label="title">
+          <input
+            type="text"
+            value={p.agentName}
+            onChange={(e) => p.setAgentName(e.target.value)}
+            style={{ ...inputStyle, width: '100%' }}
+            placeholder="Nimbus Support"
+          />
+        </Row>
+        <Row label="subtitle">
+          <input
+            type="text"
+            value={p.subtitle}
+            onChange={(e) => p.setSubtitle(e.target.value)}
+            style={{ ...inputStyle, width: '100%' }}
+            placeholder="Usually replies in a few minutes"
+          />
+        </Row>
+        <Row label="show avatar">
+          <Segmented
+            value={p.showAvatar ? 'on' : 'off'}
+            options={[{ v: 'on', l: 'on' }, { v: 'off', l: 'off' }]}
+            onChange={(v) => p.setShowAvatar(v === 'on')}
+          />
+        </Row>
+        <Row label="online dot">
+          <Segmented
+            value={p.showDot ? 'on' : 'off'}
+            options={[{ v: 'on', l: 'on' }, { v: 'off', l: 'off' }]}
+            onChange={(v) => p.setShowDot(v === 'on')}
+          />
+        </Row>
+        <Row label="placeholder">
+          <input
+            type="text"
+            value={p.placeholder}
+            onChange={(e) => p.setPlaceholder(e.target.value)}
+            maxLength={80}
+            style={{ ...inputStyle, width: '100%' }}
+            placeholder="Type a message…"
+          />
+        </Row>
+      </CustomizerGroup>
+    </div>
+  );
+}
+
+function CustomizerGroup({ title, hint, children }: {
+  title: string; hint?: string; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ paddingBottom: 18, marginBottom: 18, borderBottom: '1px dashed #e5e7eb' }}>
+      <h3 style={{
+        fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
+        color: '#6b6359', margin: '0 0 12px', fontWeight: 600,
+      }}>{title}</h3>
+      {hint && (
+        <p style={{ margin: '-4px 0 12px', fontSize: 11.5, color: '#9ca3af', lineHeight: 1.4 }}>{hint}</p>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '110px 1fr', gap: 12,
+      alignItems: 'center', marginBottom: 10,
+    }}>
+      <label style={{ fontSize: 12.5, color: '#18140f' }}>{label}</label>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function ColorRow({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  // Color input requires a valid 7-char hex; if the user-stored value is empty
+  // (meaning "use theme default") we keep the picker pointed at a neutral
+  // placeholder but stash empty in the actual state.
+  const colorForPicker = /^#[0-9a-f]{6}$/i.test(value) ? value : (placeholder || '#000000');
+  return (
+    <Row label={label}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="color"
+          value={colorForPicker}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ width: 36, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, padding: 0, background: 'none', cursor: 'pointer' }}
+        />
+        <input
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ ...inputStyle, flex: 1, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }}
+        />
+      </div>
+    </Row>
+  );
+}
+
+function Segmented<T extends string>({ value, options, onChange }: {
+  value: T;
+  options: Array<{ v: T; l: string }>;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div style={{
+      display: 'inline-flex', border: '1px solid #e5e7eb', borderRadius: 8,
+      background: '#fff', padding: 2, gap: 0,
+    }}>
+      {options.map((opt) => {
+        const active = opt.v === value;
+        return (
+          <button
+            key={opt.v}
+            type="button"
+            onClick={() => onChange(opt.v)}
+            style={{
+              padding: '5px 10px', border: 0, borderRadius: 6,
+              background: active ? '#111827' : 'transparent',
+              color: active ? '#fff' : '#374151',
+              fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            {opt.l}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SliderRow({ label, value, min, max, step, unit, onChange }: {
+  label: string; value: number; min: number; max: number; step: number;
+  unit: string; onChange: (v: number) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <label style={{ fontSize: 12.5, color: '#18140f' }}>{label}</label>
+        <span style={{ fontSize: 11, color: '#6b6359', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+          {value}{unit}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min} max={max} step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: '100%', accentColor: '#111827' }}
+      />
+    </div>
+  );
+}
 
 function hexToHslComponents(hex: string): string {
   const fallback = '222 47% 11%';

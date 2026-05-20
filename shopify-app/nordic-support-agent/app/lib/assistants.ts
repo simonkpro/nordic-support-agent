@@ -160,14 +160,17 @@ export const AssistantConfigSchema = z.object({
   verificationTier: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(1),
   // === Step 3: Customize widget (Skräddarsy chattruta) =============
   widget: z.object({
+    // Defaults match widget-design/index.html: near-black brand with a
+    // coral accent. Merchant overrides via the dashboard or inline
+    // window.NORDIC_SUPPORT.brand still win.
     primaryColor: z
       .string()
       .regex(/^#[0-9a-fA-F]{3,8}$/)
-      .default('#1f2937'),
+      .default('#1a1a1a'),
     accentColor: z
       .string()
       .regex(/^#[0-9a-fA-F]{3,8}$/)
-      .default('#1f2937'),
+      .default('#e85d4a'),
     iconStyle: z.enum(['bot', 'chat_bubble', 'sparkle', 'help']).default('bot'),
     launcherShape: z.enum(['circle', 'rounded', 'square']).default('circle'),
     launcherIconColor: z
@@ -184,6 +187,20 @@ export const AssistantConfigSchema = z.object({
     placeholder: z.string().max(80).default('Type your message…'),
     width: z.number().int().min(300).max(600).default(380),
     height: z.number().int().min(400).max(800).default(600),
+    /** Launcher button diameter in px (corresponds to --ns-launcher-size). */
+    launcherSize: z.number().int().min(40).max(96).default(60),
+    /** Panel corner radius in px (corresponds to --ns-panel-radius). */
+    panelRadius: z.number().int().min(0).max(36).default(20),
+    /** Bubble corner radius in px (corresponds to --ns-bubble-radius). */
+    bubbleRadius: z.number().int().min(0).max(28).default(18),
+    /** Font stack pushed into --ns-font-family. */
+    fontFamily: z.string().max(200).default('"Geist", system-ui, -apple-system, sans-serif'),
+    /** Base body font size in px (corresponds to --ns-font-size-base). */
+    fontSizeBase: z.number().int().min(12).max(20).default(15),
+    /** Show the header avatar circle. */
+    showAvatar: z.boolean().default(true),
+    /** Show the green online dot on the header avatar. */
+    showDot: z.boolean().default(true),
     /** Light / dark surface palette. Default light. */
     theme: z.enum(['light', 'dark']).default('light'),
     /** Panel shadow intensity. Default medium. */

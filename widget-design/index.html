@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chat Widget — design playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PAGE / HOST shell — NOT part of the widget styles.
+     The widget is everything scoped under .ns-root below.
+     ============================================================ */
+  :root {
+    --page-bg: #f3eee5;
+    --page-ink: #18140f;
+    --page-muted: #6b6359;
+    --page-line: #e3dccf;
+    --page-card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page-bg);
+    color: var(--page-ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ---- Config sidebar ---- */
+  .config {
+    border-right: 1px solid var(--page-line);
+    background: #fbf8f2;
+    padding: 28px 24px 120px;
+    overflow-y: auto;
+    max-height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  .config h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .config .lede {
+    color: var(--page-muted);
+    font-size: 13px;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+  .group {
+    margin-bottom: 22px;
+    padding-bottom: 22px;
+    border-bottom: 1px dashed var(--page-line);
+  }
+  .group:last-of-type { border-bottom: 0; }
+  .group h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--page-muted);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .row label {
+    font-size: 12.5px;
+    color: var(--page-ink);
+  }
+  .row .val {
+    font-size: 11px;
+    color: var(--page-muted);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    text-align: right;
+  }
+  .row input[type="text"],
+  .row select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--page-line);
+    border-radius: 8px;
+    background: #fff;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--page-ink);
+  }
+  .row input[type="range"] {
+    width: 100%;
+    accent-color: var(--page-ink);
+  }
+  .row input[type="color"] {
+    width: 36px;
+    height: 28px;
+    border: 1px solid var(--page-line);
+    border-radius: 6px;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .swatch-color {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .swatch-color input[type="text"] { flex: 1; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; }
+
+  .seg {
+    display: flex;
+    border: 1px solid var(--page-line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .seg button {
+    flex: 1;
+    padding: 7px 4px;
+    background: transparent;
+    border: 0;
+    font-size: 11.5px;
+    font-family: inherit;
+    color: var(--page-ink);
+    cursor: pointer;
+    border-right: 1px solid var(--page-line);
+    text-transform: capitalize;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] {
+    background: var(--page-ink);
+    color: #fff;
+  }
+
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .preset-btn {
+    aspect-ratio: 1;
+    border: 1px solid var(--page-line);
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    background: #fff;
+  }
+  .preset-btn > span { display: block; }
+  .preset-btn:hover { transform: translateY(-1px); }
+  .preset-btn[aria-pressed="true"] { outline: 2px solid var(--page-ink); outline-offset: 2px; }
+  .preset-label {
+    font-size: 10px;
+    text-align: center;
+    margin-top: 4px;
+    color: var(--page-muted);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .preset-cell { display:flex; flex-direction:column; align-items:center; }
+
+  .code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    background: #f3ede0;
+    border: 1px solid var(--page-line);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--page-ink);
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  /* ---- Host preview area ---- */
+  .preview {
+    position: relative;
+    background:
+      radial-gradient(900px 600px at 70% 20%, #ffffff 0%, transparent 70%),
+      linear-gradient(180deg, #f7f2e8 0%, #ede5d4 100%);
+    overflow: hidden;
+    min-height: 100vh;
+  }
+  .preview .host {
+    padding: 56px 64px 200px;
+    max-width: 1100px;
+  }
+  .host .crumbs {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--page-muted);
+    margin-bottom: 24px;
+  }
+  .host h2 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: clamp(36px, 4.2vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    max-width: 16ch;
+  }
+  .host p.sub {
+    color: var(--page-muted);
+    font-size: 15px;
+    line-height: 1.55;
+    max-width: 56ch;
+    margin: 0 0 28px;
+  }
+  .host .pills {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 40px;
+  }
+  .host .pill {
+    border: 1px solid var(--page-line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    color: var(--page-muted);
+    background: #fffdf8;
+  }
+  .host .ph-card {
+    border: 1px solid var(--page-line);
+    border-radius: 14px;
+    background: repeating-linear-gradient(135deg, #fbf6eb 0 8px, #f4ecda 8px 16px);
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--page-muted);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     .ns-root — WIDGET SCOPE
+     Everything below is the widget itself. Assumes it sits inside
+     a Shadow DOM (so `:host`-equivalent positioning is just on
+     .ns-root). Page styles above MUST NOT leak in.
+     ============================================================ */
+  .ns-root {
+    /* tokens */
+    --ns-brand-color: #1a1a1a;
+    --ns-brand-accent: #e85d4a;
+    --ns-launcher-icon-color: #ffffff;
+    --ns-send-icon-color: #ffffff;
+    --ns-panel-width: 380px;
+    --ns-panel-height: 600px;
+    --ns-launcher-size: 60px;
+    --ns-panel-radius: 20px;
+    --ns-bubble-radius: 18px;
+    --ns-font-family: "Geist", system-ui, -apple-system, sans-serif;
+    --ns-font-size-base: 15px;
+
+    /* surface tokens — public, theme-defaulted, user-overridable */
+    --ns-surface-bg: #ffffff;
+    --ns-surface-ink: #18140f;
+    --ns-surface-muted: #6b6359;
+    --ns-surface-line: #ece5d6;
+    --ns-bubble-in-bg: #f1ebde;
+    --ns-bubble-in-ink: #18140f;
+    --ns-input-bg: #faf6ee;
+    --_typing-dot: #b5ad9d;
+    --_shadow: 0 18px 50px -12px rgba(20, 16, 8, 0.18), 0 4px 14px -4px rgba(20, 16, 8, 0.08);
+
+    position: fixed;
+    inset: 0;
+    pointer-events: none; /* let host page receive everything except the widget itself */
+    z-index: 9999;
+    font-family: var(--ns-font-family);
+    font-size: var(--ns-font-size-base);
+    color: var(--ns-surface-ink);
+  }
+  .ns-root[data-theme="dark"] {
+    --ns-surface-bg: #1a1714;
+    --ns-surface-ink: #f5efe2;
+    --ns-surface-muted: #98907f;
+    --ns-surface-line: #2c2620;
+    --ns-bubble-in-bg: #2a241d;
+    --ns-bubble-in-ink: #f5efe2;
+    --ns-input-bg: #221d18;
+    --_typing-dot: #6b6359;
+    --_shadow: 0 18px 50px -12px rgba(0,0,0,0.55), 0 4px 14px -4px rgba(0,0,0,0.35);
+  }
+
+  .ns-root[data-shadow="none"]    { --_shadow: none; }
+  .ns-root[data-shadow="subtle"]  { --_shadow: 0 4px 14px -4px rgba(20,16,8,0.10); }
+  .ns-root[data-shadow="medium"]  { --_shadow: 0 18px 50px -12px rgba(20,16,8,0.18), 0 4px 14px -4px rgba(20,16,8,0.08); }
+  .ns-root[data-shadow="strong"]  { --_shadow: 0 32px 80px -16px rgba(20,16,8,0.36), 0 10px 30px -8px rgba(20,16,8,0.16); }
+
+  .ns-root * { box-sizing: border-box; }
+  .ns-root button { font: inherit; cursor: pointer; }
+
+  /* ---- Launcher ---- */
+  .ns-launcher {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    width: var(--ns-launcher-size);
+    height: var(--ns-launcher-size);
+    background: var(--ns-brand-color);
+    color: var(--ns-launcher-icon-color);
+    border: 0;
+    box-shadow: var(--_shadow);
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+    transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms, border-radius 280ms cubic-bezier(.22,1,.36,1);
+  }
+  .ns-launcher:hover { transform: translateY(-2px) scale(1.04); }
+  .ns-launcher:active { transform: translateY(0) scale(0.96); }
+  .ns-root[data-launcher-shape="circle"]  .ns-launcher { border-radius: 9999px; }
+  .ns-root[data-launcher-shape="rounded"] .ns-launcher { border-radius: 16px; }
+  .ns-root[data-launcher-shape="square"]  .ns-launcher { border-radius: 4px; }
+
+  /* Stack the two launcher icons in the same grid cell so both stay centered,
+     then crossfade + rotate between them on open/close. */
+  .ns-launcher-icon {
+    grid-area: 1 / 1;
+    width: 54%;
+    height: 54%;
+    display: grid;
+    place-items: center;
+    color: inherit;
+    transition: opacity 220ms cubic-bezier(.22,1,.36,1), transform 280ms cubic-bezier(.22,1,.36,1);
+    transform-origin: 50% 50%;
+  }
+  .ns-launcher-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    color: inherit;
+  }
+  .ns-root[data-open="false"] .ns-launcher-icon.icon-default { opacity: 1; transform: rotate(0deg) scale(1); }
+  .ns-root[data-open="false"] .ns-launcher-icon.icon-close   { opacity: 0; transform: rotate(-45deg) scale(0.6); pointer-events: none; }
+  .ns-root[data-open="true"]  .ns-launcher-icon.icon-default { opacity: 0; transform: rotate(45deg) scale(0.6); pointer-events: none; }
+  .ns-root[data-open="true"]  .ns-launcher-icon.icon-close   { opacity: 1; transform: rotate(0deg) scale(1); }
+  .ns-launcher-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--ns-brand-accent);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--page-bg, #f3eee5);
+    line-height: 1;
+  }
+
+  /* ---- Panel ---- */
+  .ns-panel {
+    position: absolute;
+    right: 24px;
+    bottom: calc(24px + var(--ns-launcher-size) + 14px);
+    width: var(--ns-panel-width);
+    height: var(--ns-panel-height);
+    max-height: calc(100vh - 48px - var(--ns-launcher-size) - 14px);
+    background: var(--ns-surface-bg);
+    color: var(--ns-surface-ink);
+    border-radius: var(--ns-panel-radius);
+    box-shadow: var(--_shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto;
+    transform-origin: 100% 100%;
+    transition:
+      opacity 260ms cubic-bezier(.22,1,.36,1),
+      transform 360ms cubic-bezier(.22,1,.36,1),
+      visibility 0s linear 0s;
+    will-change: transform, opacity;
+  }
+  .ns-root[data-open="false"] .ns-panel {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      opacity 200ms cubic-bezier(.4,0,1,1),
+      transform 240ms cubic-bezier(.4,0,1,1),
+      visibility 0s linear 240ms;
+  }
+
+  /* ---- Header ---- */
+  .ns-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 14px 14px 16px;
+    background: var(--ns-brand-color);
+    color: #fff;
+    border-bottom: 1px solid color-mix(in srgb, var(--ns-brand-color) 80%, #000 0%);
+  }
+  .ns-avatar {
+    width: 36px; height: 36px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #fff 18%, var(--ns-brand-color));
+    color: #fff;
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 600;
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .ns-avatar .dot {
+    position: absolute;
+    right: -1px; bottom: -1px;
+    width: 11px; height: 11px;
+    border-radius: 999px;
+    background: #34c759;
+    border: 2px solid var(--ns-brand-color);
+  }
+  .ns-title-block { flex: 1; min-width: 0; }
+  .ns-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ns-subtitle {
+    font-size: 12px;
+    opacity: 0.72;
+    line-height: 1.3;
+    margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ns-header-actions { display: flex; gap: 2px; flex: 0 0 auto; }
+  .ns-icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 0;
+    color: #fff;
+    display: grid; place-items: center;
+    opacity: 0.8;
+    transition: opacity 120ms, background 120ms;
+  }
+  .ns-icon-btn:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+  .ns-icon-btn svg { width: 16px; height: 16px; }
+
+  /* ---- Body ---- */
+  .ns-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--ns-surface-bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--ns-surface-line) transparent;
+  }
+  .ns-body::-webkit-scrollbar { width: 8px; }
+  .ns-body::-webkit-scrollbar-thumb { background: var(--ns-surface-line); border-radius: 4px; }
+
+  .ns-day {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ns-surface-muted);
+    padding: 6px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .ns-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 84%;
+    gap: 2px;
+  }
+  .ns-msg-row { display: flex; align-items: flex-end; gap: 8px; }
+  .ns-msg-row.in  { justify-content: flex-start; }
+  .ns-msg-row.out { justify-content: flex-end; }
+
+  .ns-msg-avatar {
+    width: 24px; height: 24px;
+    border-radius: 999px;
+    background: var(--ns-bubble-in-bg);
+    color: var(--ns-bubble-in-ink);
+    display: grid; place-items: center;
+    font-size: 10.5px; font-weight: 600;
+    flex: 0 0 auto;
+    margin-bottom: 2px;
+  }
+
+  .ns-bubble {
+    padding: 10px 14px;
+    border-radius: var(--ns-bubble-radius);
+    font-size: var(--ns-font-size-base);
+    line-height: 1.45;
+    max-width: 100%;
+    word-wrap: break-word;
+    /* markdown is intentionally flat: kill bold/italic in body */
+  }
+  .ns-bubble strong, .ns-bubble b, .ns-bubble em, .ns-bubble i {
+    font-weight: inherit;
+    font-style: normal;
+  }
+  .ns-bubble.in {
+    background: var(--ns-bubble-in-bg);
+    color: var(--ns-bubble-in-ink);
+    border-bottom-left-radius: 6px;
+  }
+  .ns-bubble.out {
+    background: var(--ns-brand-color);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+  }
+  .ns-meta {
+    font-size: 10.5px;
+    color: var(--ns-surface-muted);
+    padding: 0 4px;
+  }
+  .ns-msg-row.out + .ns-meta-row { text-align: right; }
+  .ns-meta-row { padding: 0 4px 4px; }
+
+  /* typing indicator */
+  .ns-typing {
+    background: var(--ns-bubble-in-bg);
+    border-radius: var(--ns-bubble-radius);
+    border-bottom-left-radius: 6px;
+    padding: 12px 14px;
+    display: inline-flex; gap: 4px; align-items: center;
+  }
+  .ns-typing span {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: var(--_typing-dot);
+    animation: ns-bounce 1.2s infinite ease-in-out;
+  }
+  .ns-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .ns-typing span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes ns-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.55; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ---- Message entrance animations ----
+     Two distinct motions:
+     - .out (user): the bubble lifts off the composer — rises from below
+       with a small forward push and brief shadow flash. Snappy.
+     - .in  (assistant): the bubble unfolds from its bottom-left corner
+       (near the avatar tail) using a clip-path reveal + gentle scale.
+       Slower, more deliberate, no overshoot — feels like the assistant
+       is calmly placing the bubble down.
+     Avatars pop in slightly ahead of their bubble. Meta lines fade up
+     after. Quick replies cascade. */
+
+  @keyframes ns-out-bubble {
+    0%   { opacity: 0; transform: translateY(18px) scale(0.94); }
+    100% { opacity: 1; transform: translateY(0)    scale(1);    }
+  }
+  @keyframes ns-in-bubble {
+    0% {
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+      clip-path: inset(85% 80% 0% 0% round var(--ns-bubble-radius));
+    }
+    55% { opacity: 1; }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      clip-path: inset(0% 0% 0% 0% round var(--ns-bubble-radius));
+    }
+  }
+  @keyframes ns-typing-in {
+    0%   { opacity: 0; transform: translateY(4px) scale(0.85); }
+    100% { opacity: 1; transform: translateY(0)   scale(1);    }
+  }
+  @keyframes ns-avatar-pop {
+    0%   { opacity: 0; transform: scale(0.4); }
+    70%  { opacity: 1; transform: scale(1.08); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes ns-fade-up {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes ns-quick-pop {
+    0%   { opacity: 0; transform: translateY(8px) scale(0.94); }
+    100% { opacity: 1; transform: translateY(0)   scale(1);    }
+  }
+
+  .ns-msg-row.in  .ns-bubble,
+  .ns-msg-row.in  .ns-typing { transform-origin: 0% 100%; }
+  .ns-msg-row.out .ns-bubble { transform-origin: 100% 100%; }
+  .ns-msg-row.in  .ns-msg-avatar { transform-origin: 50% 100%; }
+
+  /* Fresh items (added via JS, or initial markup) animate. The .ns-fresh
+     class is what lets us opt-in per element so we don't replay every
+     bubble each time the panel opens. */
+  .ns-msg-row.in.ns-fresh  .ns-bubble  { animation: ns-in-bubble    520ms cubic-bezier(.22, 1, .36, 1) both; }
+  .ns-msg-row.out.ns-fresh .ns-bubble  { animation: ns-out-bubble   340ms cubic-bezier(.2, .9, .25, 1.15) both; }
+  .ns-fresh .ns-typing                 { animation: ns-typing-in    280ms cubic-bezier(.22, 1, .36, 1) both; }
+  .ns-fresh .ns-msg-avatar             { animation: ns-avatar-pop   380ms cubic-bezier(.34, 1.4, .5, 1) both; }
+  .ns-meta-row.ns-fresh                { animation: ns-fade-up      280ms ease-out 220ms both; }
+  .ns-quick.ns-fresh                   { animation: ns-fade-up      360ms cubic-bezier(.22,1,.36,1) 100ms both; }
+  .ns-quick.ns-fresh button            { animation: ns-quick-pop    320ms cubic-bezier(.34, 1.4, .5, 1) both; }
+  .ns-quick.ns-fresh button:nth-child(1) { animation-delay: 140ms; }
+  .ns-quick.ns-fresh button:nth-child(2) { animation-delay: 200ms; }
+  .ns-quick.ns-fresh button:nth-child(3) { animation-delay: 260ms; }
+  .ns-quick.ns-fresh button:nth-child(4) { animation-delay: 320ms; }
+  .ns-day.ns-fresh                     { animation: ns-fade-up      320ms ease-out both; }
+
+  /* First-open: the conversation history is already "there" — fade the
+     whole body up gently as one piece instead of cascading row-by-row. */
+  @keyframes ns-first-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .ns-body.ns-first-open { animation: ns-first-fade 360ms cubic-bezier(.22,1,.36,1) both; }
+
+  /* Stagger multiple fresh rows that arrive in the same batch (e.g. the
+     initial conversation when the panel first opens). Honored via an
+     inline --ns-stagger custom property the JS sets. */
+  .ns-fresh { animation-delay: var(--ns-stagger, 0ms); }
+  .ns-msg-row.in.ns-fresh  .ns-bubble,
+  .ns-msg-row.out.ns-fresh .ns-bubble,
+  .ns-fresh .ns-typing,
+  .ns-fresh .ns-msg-avatar,
+  .ns-meta-row.ns-fresh,
+  .ns-day.ns-fresh { animation-delay: var(--ns-stagger, 0ms); }
+  /* Avatar leads its bubble by ~80ms */
+  .ns-fresh .ns-msg-avatar { animation-delay: calc(var(--ns-stagger, 0ms) - 80ms); }
+  /* Meta + quick replies trail their row */
+  .ns-meta-row.ns-fresh { animation-delay: calc(var(--ns-stagger, 0ms) + 220ms); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ns-msg-row.in.ns-fresh  .ns-bubble,
+    .ns-msg-row.out.ns-fresh .ns-bubble,
+    .ns-fresh .ns-typing,
+    .ns-fresh .ns-msg-avatar,
+    .ns-meta-row.ns-fresh, .ns-quick.ns-fresh,
+    .ns-quick.ns-fresh button, .ns-day.ns-fresh {
+      animation: none;
+    }
+  }
+
+  /* quick replies — not attributed to either side, so center them */
+  .ns-quick {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px 4px 10px;
+    justify-content: center;
+  }
+  .ns-quick button {
+    border: 1px solid var(--ns-surface-line);
+    background: var(--ns-surface-bg);
+    color: var(--ns-surface-ink);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-family: inherit;
+    transition: background 120ms, border-color 120ms;
+  }
+  .ns-quick button:hover {
+    background: var(--ns-bubble-in-bg);
+    border-color: var(--ns-brand-accent);
+    color: var(--ns-brand-accent);
+  }
+
+  /* ---- Composer ---- */
+  .ns-composer {
+    border-top: 1px solid var(--ns-surface-line);
+    padding: 10px 12px 12px;
+    background: var(--ns-surface-bg);
+  }
+  .ns-input-wrap {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: var(--ns-input-bg);
+    border: 1px solid var(--ns-surface-line);
+    border-radius: 16px;
+    padding: 6px 6px 6px 14px;
+    transition: border-color 140ms;
+  }
+  .ns-input-wrap:focus-within { border-color: var(--ns-brand-accent); }
+  .ns-input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    resize: none;
+    outline: none;
+    font: inherit;
+    color: var(--ns-surface-ink);
+    padding: 8px 0;
+    max-height: 110px;
+    line-height: 1.4;
+  }
+  .ns-input::placeholder { color: var(--ns-surface-muted); }
+  .ns-send {
+    width: 36px; height: 36px;
+    background: var(--ns-brand-color);
+    color: var(--ns-send-icon-color);
+    border: 0;
+    display: grid; place-items: center;
+    flex: 0 0 auto;
+    transition: transform 140ms, opacity 140ms;
+  }
+  .ns-send:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ns-send:not(:disabled):hover { transform: translateY(-1px); }
+  .ns-send svg { width: 16px; height: 16px; }
+
+  .ns-root[data-send-shape="circle"]  .ns-send { border-radius: 9999px; }
+  .ns-root[data-send-shape="rounded"] .ns-send { border-radius: 10px; }
+  .ns-root[data-send-shape="square"]  .ns-send { border-radius: 4px; }
+
+  .ns-root[data-send-fill="solid"]   .ns-send {
+    background: var(--ns-brand-color);
+    color: var(--ns-send-icon-color);
+    border: 1px solid transparent;
+  }
+  .ns-root[data-send-fill="outline"] .ns-send {
+    background: transparent;
+    color: var(--ns-brand-color);
+    border: 1.5px solid var(--ns-brand-color);
+  }
+  .ns-root[data-theme="dark"][data-send-fill="outline"] .ns-send {
+    color: #fff;
+    border-color: rgba(255,255,255,0.5);
+  }
+  .ns-root[data-send-fill="ghost"]   .ns-send {
+    background: transparent;
+    color: var(--ns-brand-color);
+    border: 0;
+  }
+  .ns-root[data-theme="dark"][data-send-fill="ghost"] .ns-send { color: #fff; }
+
+  .ns-foot {
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--ns-surface-muted);
+    padding: 6px 0 2px;
+    letter-spacing: 0.02em;
+  }
+  .ns-foot b { color: var(--ns-surface-ink); font-weight: 500; }
+
+  /* ---- Mobile fullscreen ---- */
+  @media (max-width: 480px) {
+    .ns-panel {
+      right: 0; left: 0; bottom: 0; top: 0;
+      width: 100%; height: 100%;
+      max-height: 100%;
+      border-radius: 0 !important;
+    }
+    .ns-launcher { right: 16px; bottom: 16px; }
+    .ns-root[data-open="true"] .ns-launcher { display: none; }
+  }
+
+  /* page responsiveness for the playground itself */
+  @media (max-width: 900px) {
+    .stage { grid-template-columns: 1fr; }
+    .config { position: relative; max-height: none; border-right: 0; border-bottom: 1px solid var(--page-line); }
+    .preview .host { padding: 32px 24px 280px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <!-- ============== CONFIG SIDEBAR ============== -->
+  <aside class="config">
+    <h1>Chat widget</h1>
+    <p class="lede">Live-tweak every visual token. The widget on the right re-renders instantly. All styles scoped under <code style="font-family:'JetBrains Mono',monospace;background:#f3ede0;padding:1px 5px;border-radius:4px;font-size:11.5px;">.ns-root</code>.</p>
+
+    <div class="group">
+      <h2>Quick presets</h2>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="group">
+      <h2>Theme &amp; shadow</h2>
+      <div class="row">
+        <label>theme</label>
+        <div class="seg" data-seg="theme">
+          <button data-v="light">light</button>
+          <button data-v="dark">dark</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>shadow</label>
+        <div class="seg" data-seg="shadow">
+          <button data-v="none">none</button>
+          <button data-v="subtle">subtle</button>
+          <button data-v="medium">medium</button>
+          <button data-v="strong">strong</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Colors</h2>
+      <div class="row">
+        <label>brand</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-brand" />
+          <input type="text" id="tx-brand" />
+        </div>
+      </div>
+      <div class="row">
+        <label>accent</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-accent" />
+          <input type="text" id="tx-accent" />
+        </div>
+      </div>
+      <div class="row">
+        <label>launcher icon</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-licon" />
+          <input type="text" id="tx-licon" />
+        </div>
+      </div>
+      <div class="row">
+        <label>send icon</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-sicon" />
+          <input type="text" id="tx-sicon" />
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Surfaces</h2>
+      <p class="lede" style="margin:-4px 0 12px;font-size:11.5px;">Override theme defaults. Switching theme resets these.</p>
+      <div class="row">
+        <label>panel bg</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-surface" />
+          <input type="text" id="tx-surface" />
+        </div>
+      </div>
+      <div class="row">
+        <label>panel text</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-surface-ink" />
+          <input type="text" id="tx-surface-ink" />
+        </div>
+      </div>
+      <div class="row">
+        <label>AI bubble</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-inbg" />
+          <input type="text" id="tx-inbg" />
+        </div>
+      </div>
+      <div class="row">
+        <label>AI bubble text</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-inink" />
+          <input type="text" id="tx-inink" />
+        </div>
+      </div>
+      <div class="row">
+        <label>input bg</label>
+        <div class="swatch-color">
+          <input type="color" id="cp-inputbg" />
+          <input type="text" id="tx-inputbg" />
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Shapes</h2>
+      <div class="row">
+        <label>launcher</label>
+        <div class="seg" data-seg="launcherShape">
+          <button data-v="circle">circle</button>
+          <button data-v="rounded">rounded</button>
+          <button data-v="square">square</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>send</label>
+        <div class="seg" data-seg="sendShape">
+          <button data-v="circle">circle</button>
+          <button data-v="rounded">rounded</button>
+          <button data-v="square">square</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>send fill</label>
+        <div class="seg" data-seg="sendFill">
+          <button data-v="solid">solid</button>
+          <button data-v="outline">outline</button>
+          <button data-v="ghost">ghost</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>icon style</label>
+        <div class="seg" data-seg="iconStyle">
+          <button data-v="bot">bot</button>
+          <button data-v="chat_bubble">chat</button>
+          <button data-v="sparkle">sparkle</button>
+          <button data-v="help">help</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Sizes</h2>
+      <div class="row">
+        <label>panel width</label>
+        <input type="range" id="rng-pw" min="300" max="520" step="4" />
+        <span class="val" id="val-pw"></span>
+      </div>
+      <div class="row">
+        <label>panel height</label>
+        <input type="range" id="rng-ph" min="440" max="780" step="4" />
+        <span class="val" id="val-ph"></span>
+      </div>
+      <div class="row">
+        <label>launcher size</label>
+        <input type="range" id="rng-ls" min="44" max="84" step="2" />
+        <span class="val" id="val-ls"></span>
+      </div>
+      <div class="row">
+        <label>panel radius</label>
+        <input type="range" id="rng-pr" min="0" max="32" step="1" />
+        <span class="val" id="val-pr"></span>
+      </div>
+      <div class="row">
+        <label>bubble radius</label>
+        <input type="range" id="rng-br" min="2" max="24" step="1" />
+        <span class="val" id="val-br"></span>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Typography</h2>
+      <div class="row">
+        <label>font family</label>
+        <select id="sel-font">
+          <option value='system-ui, -apple-system, "Segoe UI", sans-serif'>System</option>
+          <option value='"Geist", system-ui, sans-serif'>Geist</option>
+          <option value='"Inter Tight", system-ui, sans-serif'>Inter Tight</option>
+          <option value='"IBM Plex Sans", system-ui, sans-serif'>IBM Plex Sans</option>
+          <option value='"Instrument Serif", Georgia, serif'>Instrument Serif</option>
+          <option value='"JetBrains Mono", ui-monospace, monospace'>JetBrains Mono</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>base size</label>
+        <input type="range" id="rng-fs" min="12" max="20" step="0.5" />
+        <span class="val" id="val-fs"></span>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Header content</h2>
+      <div class="row">
+        <label>title</label>
+        <input type="text" id="in-title" />
+      </div>
+      <div class="row">
+        <label>subtitle</label>
+        <input type="text" id="in-subtitle" />
+      </div>
+      <div class="row">
+        <label>show avatar</label>
+        <div class="seg" data-seg="showAvatar">
+          <button data-v="true">on</button>
+          <button data-v="false">off</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>online dot</label>
+        <div class="seg" data-seg="showDot">
+          <button data-v="true">on</button>
+          <button data-v="false">off</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Output</h2>
+      <pre class="code" id="css-out"></pre>
+    </div>
+  </aside>
+
+  <!-- ============== PREVIEW / HOST PAGE ============== -->
+  <main class="preview">
+    <div class="host">
+      <div class="crumbs">Acme Inc.  /  Help center  /  Live preview</div>
+      <h2>An imaginary host page where your widget lives.</h2>
+      <p class="sub">Drop the widget on any site. The launcher floats in the corner; the panel slides up on click. Every visual property is a CSS custom property — swap the brand color, change the shape, resize the panel, and the widget responds instantly. Try the controls on the left.</p>
+      <div class="pills">
+        <span class="pill">Documentation</span>
+        <span class="pill">API reference</span>
+        <span class="pill">Changelog</span>
+        <span class="pill">Status</span>
+      </div>
+      <div class="ph-card">PRODUCT&nbsp;&nbsp;CONTENT&nbsp;&nbsp;PLACEHOLDER</div>
+    </div>
+
+    <!-- ============== THE WIDGET ============== -->
+    <div class="ns-root"
+         id="widget"
+         data-open="false"
+         data-theme="light"
+         data-shadow="medium"
+         data-launcher-shape="circle"
+         data-send-shape="circle"
+         data-send-fill="solid"
+         data-icon-style="chat_bubble">
+
+      <!-- Panel -->
+      <div class="ns-panel" role="dialog" aria-label="Support chat">
+        <header class="ns-header">
+          <div class="ns-avatar" id="hdr-avatar">
+            N
+            <span class="dot" id="hdr-dot"></span>
+          </div>
+          <div class="ns-title-block">
+            <div class="ns-title" id="hdr-title">Nimbus Support</div>
+            <div class="ns-subtitle" id="hdr-subtitle">Usually replies in a few minutes</div>
+          </div>
+          <div class="ns-header-actions">
+            <button class="ns-icon-btn" id="btn-close" aria-label="Close">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="ns-body" id="body">
+          <div class="ns-day">Today</div>
+
+          <div class="ns-msg-row in">
+            <div class="ns-msg-avatar">N</div>
+            <div class="ns-bubble in">Hi there! 👋 I'm Nimbus. What can I help you with today?</div>
+          </div>
+          <div class="ns-meta-row"><span class="ns-meta">Nimbus · 9:41</span></div>
+
+          <div class="ns-msg-row in">
+            <div class="ns-msg-avatar">N</div>
+            <div class="ns-bubble in">You can ask me about pricing, integrations, account setup — or pick one of the topics below.</div>
+          </div>
+
+          <div class="ns-quick">
+            <button data-q="How does pricing work?">Pricing</button>
+            <button data-q="What integrations do you support?">Integrations</button>
+            <button data-q="I need to talk to a human.">Talk to a human</button>
+          </div>
+
+          <div class="ns-msg-row out">
+            <div class="ns-bubble out">How does pricing work?</div>
+          </div>
+          <div class="ns-meta-row" style="text-align:right;"><span class="ns-meta">Delivered · 9:42</span></div>
+
+          <div class="ns-msg-row in" id="typing-row">
+            <div class="ns-msg-avatar">N</div>
+            <div class="ns-typing"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+
+        <div class="ns-composer">
+          <div class="ns-input-wrap">
+            <textarea class="ns-input" id="input" rows="1" placeholder="Type a message…"></textarea>
+            <button class="ns-send" id="send" disabled aria-label="Send">
+              <!-- arrow up -->
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/>
+              </svg>
+            </button>
+          </div>
+          <div class="ns-foot">Powered by <b>Nimbus</b></div>
+        </div>
+      </div>
+
+      <!-- Launcher -->
+      <button class="ns-launcher" id="launcher" aria-label="Open chat">
+        <span class="ns-launcher-badge" id="badge">1</span>
+        <span class="ns-launcher-icon icon-default" id="icon-slot"></span>
+        <span class="ns-launcher-icon icon-close" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </span>
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // ============================================================
+  // Widget state + bindings
+  // ============================================================
+  const root = document.getElementById('widget');
+
+  const ICONS = {
+    chat_bubble: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8.6L6 21.4V17H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>',
+    bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4"/><circle cx="9" cy="13" r="1.2" fill="currentColor"/><circle cx="15" cy="13" r="1.2" fill="currentColor"/><path d="M9 17h6"/><path d="M2 12h2M20 12h2"/></svg>',
+    sparkle: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2zM19 14l.9 2.6L22 17.5l-2.1.9L19 21l-.9-2.6L16 17.5l2.1-.9L19 14z"/></svg>',
+    help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>'
+  };
+
+  const TOKENS = {
+    'brand-color': '#1a1a1a',
+    'brand-accent': '#e85d4a',
+    'launcher-icon-color': '#ffffff',
+    'send-icon-color': '#ffffff',
+    'panel-width': '380px',
+    'panel-height': '600px',
+    'launcher-size': '60px',
+    'panel-radius': '20px',
+    'bubble-radius': '18px',
+    'font-family': '"Geist", system-ui, -apple-system, sans-serif',
+    'font-size-base': '15px'
+  };
+
+  // Surface tokens are theme-defaulted in CSS; track explicit user overrides
+  // here so we can reset them when theme changes.
+  const SURFACE_KEYS = ['surface-bg','surface-ink','bubble-in-bg','bubble-in-ink','input-bg'];
+  const SURFACE_OVERRIDES = {};
+
+  const VARIANTS = {
+    launcherShape: 'circle',
+    sendShape: 'circle',
+    sendFill: 'solid',
+    iconStyle: 'chat_bubble',
+    theme: 'light',
+    shadow: 'medium',
+    showAvatar: 'true',
+    showDot: 'true'
+  };
+
+  const HEADER = {
+    title: 'Nimbus Support',
+    subtitle: 'Usually replies in a few minutes'
+  };
+
+  // ---- apply functions ----
+  function applyToken(key, value) {
+    TOKENS[key] = value;
+    root.style.setProperty('--ns-' + key, value);
+    renderOutput();
+  }
+
+  function applyVariant(key, value) {
+    VARIANTS[key] = value;
+    const attrMap = {
+      launcherShape: 'data-launcher-shape',
+      sendShape: 'data-send-shape',
+      sendFill: 'data-send-fill',
+      iconStyle: 'data-icon-style',
+      theme: 'data-theme',
+      shadow: 'data-shadow'
+    };
+    if (attrMap[key]) root.setAttribute(attrMap[key], value);
+    if (key === 'iconStyle') renderIcon();
+    if (key === 'theme') {
+      // Reset surface overrides so the new theme's defaults take effect.
+      SURFACE_KEYS.forEach(k => {
+        root.style.removeProperty('--ns-' + k);
+        delete SURFACE_OVERRIDES[k];
+      });
+      // Sync surface pickers to whatever the theme now resolves to.
+      syncSurfacePickers();
+    }
+    if (key === 'showAvatar') {
+      document.getElementById('hdr-avatar').style.display = value === 'true' ? '' : 'none';
+    }
+    if (key === 'showDot') {
+      document.getElementById('hdr-dot').style.display = value === 'true' ? '' : 'none';
+    }
+    // re-sync seg buttons
+    document.querySelectorAll(`.seg[data-seg="${key}"] button`).forEach(b => {
+      b.setAttribute('aria-pressed', b.dataset.v === value ? 'true' : 'false');
+    });
+    renderOutput();
+  }
+
+  function renderIcon() {
+    const slot = document.getElementById('icon-slot');
+    slot.innerHTML = ICONS[VARIANTS.iconStyle];
+  }
+
+  function renderOutput() {
+    const lines = Object.entries(TOKENS).map(([k,v]) => `  --ns-${k}: ${v};`);
+    SURFACE_KEYS.forEach(k => {
+      if (SURFACE_OVERRIDES[k]) lines.push(`  --ns-${k}: ${SURFACE_OVERRIDES[k]};`);
+    });
+    document.getElementById('css-out').textContent = '.ns-root {\n' + lines.join('\n') + '\n}';
+  }
+
+  // Read a CSS custom property resolved on the widget, return as #RRGGBB.
+  function resolveColor(varName) {
+    const raw = getComputedStyle(root).getPropertyValue(varName).trim();
+    if (!raw) return '#000000';
+    if (raw.startsWith('#')) {
+      // expand 3-digit shorthand
+      if (raw.length === 4) return '#' + raw.slice(1).split('').map(c => c+c).join('');
+      return raw.slice(0, 7);
+    }
+    // rgb()/rgba() → hex
+    const m = raw.match(/-?\d+\.?\d*/g);
+    if (m && m.length >= 3) {
+      const [r,g,b] = m.map(Number);
+      return '#' + [r,g,b].map(n => Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0')).join('');
+    }
+    return '#000000';
+  }
+
+  // Push the currently-resolved surface colors into the pickers (used after
+  // theme change so the pickers reflect what's actually on screen).
+  function syncSurfacePickers() {
+    const map = [
+      ['cp-surface',     'tx-surface',     '--ns-surface-bg'],
+      ['cp-surface-ink', 'tx-surface-ink', '--ns-surface-ink'],
+      ['cp-inbg',        'tx-inbg',        '--ns-bubble-in-bg'],
+      ['cp-inink',       'tx-inink',       '--ns-bubble-in-ink'],
+      ['cp-inputbg',     'tx-inputbg',     '--ns-input-bg']
+    ];
+    map.forEach(([cpId, txId, varName]) => {
+      const v = resolveColor(varName);
+      const cp = document.getElementById(cpId);
+      const tx = document.getElementById(txId);
+      if (cp) cp.value = v;
+      if (tx) tx.value = v;
+    });
+  }
+
+  // ============================================================
+  // Wire up segmented controls
+  // ============================================================
+  document.querySelectorAll('.seg').forEach(seg => {
+    const key = seg.dataset.seg;
+    seg.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => applyVariant(key, b.dataset.v));
+    });
+  });
+
+  // ============================================================
+  // Color pickers
+  // ============================================================
+  function wireColor(pickerId, textId, tokenKey) {
+    const cp = document.getElementById(pickerId);
+    const tx = document.getElementById(textId);
+    function set(v) {
+      cp.value = v;
+      tx.value = v;
+      applyToken(tokenKey, v);
+    }
+    cp.addEventListener('input', () => set(cp.value));
+    tx.addEventListener('change', () => set(tx.value));
+    return set;
+  }
+  const setBrand  = wireColor('cp-brand', 'tx-brand', 'brand-color');
+  const setAccent = wireColor('cp-accent', 'tx-accent', 'brand-accent');
+  const setLIcon  = wireColor('cp-licon', 'tx-licon', 'launcher-icon-color');
+  const setSIcon  = wireColor('cp-sicon', 'tx-sicon', 'send-icon-color');
+
+  // Surface overrides: same UX as wireColor but stored separately so theme
+  // switches can wipe them.
+  function wireSurfaceColor(pickerId, textId, tokenKey) {
+    const cp = document.getElementById(pickerId);
+    const tx = document.getElementById(textId);
+    function set(v) {
+      if (!/^#[0-9a-f]{6}$/i.test(v) && !/^#[0-9a-f]{3}$/i.test(v)) return;
+      cp.value = v;
+      tx.value = v;
+      SURFACE_OVERRIDES[tokenKey] = v;
+      root.style.setProperty('--ns-' + tokenKey, v);
+      renderOutput();
+    }
+    cp.addEventListener('input', () => set(cp.value));
+    tx.addEventListener('change', () => set(tx.value));
+    return set;
+  }
+  wireSurfaceColor('cp-surface',     'tx-surface',     'surface-bg');
+  wireSurfaceColor('cp-surface-ink', 'tx-surface-ink', 'surface-ink');
+  wireSurfaceColor('cp-inbg',        'tx-inbg',        'bubble-in-bg');
+  wireSurfaceColor('cp-inink',       'tx-inink',       'bubble-in-ink');
+  wireSurfaceColor('cp-inputbg',     'tx-inputbg',     'input-bg');
+
+  // ============================================================
+  // Range controls
+  // ============================================================
+  function wireRange(rngId, valId, tokenKey, unit='px', fmt=(v)=>v) {
+    const rng = document.getElementById(rngId);
+    const val = document.getElementById(valId);
+    function set(v) {
+      rng.value = v;
+      val.textContent = fmt(v) + unit;
+      applyToken(tokenKey, fmt(v) + unit);
+    }
+    rng.addEventListener('input', () => set(rng.value));
+    return set;
+  }
+  const setPW = wireRange('rng-pw', 'val-pw', 'panel-width');
+  const setPH = wireRange('rng-ph', 'val-ph', 'panel-height');
+  const setLS = wireRange('rng-ls', 'val-ls', 'launcher-size');
+  const setPR = wireRange('rng-pr', 'val-pr', 'panel-radius');
+  const setBR = wireRange('rng-br', 'val-br', 'bubble-radius');
+  const setFS = wireRange('rng-fs', 'val-fs', 'font-size-base');
+
+  // font family
+  const selFont = document.getElementById('sel-font');
+  selFont.addEventListener('change', () => applyToken('font-family', selFont.value));
+
+  // header content
+  const inTitle = document.getElementById('in-title');
+  const inSubtitle = document.getElementById('in-subtitle');
+  inTitle.addEventListener('input', () => {
+    document.getElementById('hdr-title').textContent = inTitle.value || ' ';
+    const initial = (inTitle.value || 'N').trim().charAt(0).toUpperCase();
+    const av = document.getElementById('hdr-avatar');
+    av.firstChild.textContent = initial; // first text node
+  });
+  inSubtitle.addEventListener('input', () => {
+    document.getElementById('hdr-subtitle').textContent = inSubtitle.value;
+    document.getElementById('hdr-subtitle').style.display = inSubtitle.value ? '' : 'none';
+  });
+
+  // ============================================================
+  // Presets
+  // ============================================================
+  const PRESETS = [
+    { name: 'Cream',   brand: '#1a1a1a', accent: '#e85d4a', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+    { name: 'Tandem',  brand: '#2c4a3e', accent: '#c8a87a', licon: '#f5f1ea', sicon: '#f5f1ea', theme: 'light',
+      font: '"Inter Tight", system-ui, sans-serif',
+      surfaces: {
+        'surface-bg':    '#f7f4ee',
+        'surface-ink':   '#1f2823',
+        'bubble-in-bg':  '#ece6d8',
+        'bubble-in-ink': '#1f2823',
+        'input-bg':      '#f0ebde'
+      } },
+    { name: 'Cobalt',  brand: '#1e40af', accent: '#fbbf24', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+    { name: 'Forest',  brand: '#14532d', accent: '#84cc16', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+    { name: 'Ember',   brand: '#9a3412', accent: '#fde68a', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+    { name: 'Violet',  brand: '#6d28d9', accent: '#22d3ee', licon: '#ffffff', sicon: '#ffffff', theme: 'light' },
+    { name: 'Slate',   brand: '#0f172a', accent: '#38bdf8', licon: '#ffffff', sicon: '#ffffff', theme: 'dark'  },
+    { name: 'Plum',    brand: '#3b0764', accent: '#f0abfc', licon: '#ffffff', sicon: '#ffffff', theme: 'dark'  },
+    { name: 'Carbon',  brand: '#0a0a0a', accent: '#22c55e', licon: '#22c55e', sicon: '#0a0a0a', theme: 'dark'  }
+  ];
+  const presetsEl = document.getElementById('presets');
+  PRESETS.forEach((p, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'preset-cell';
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.title = p.name;
+    btn.innerHTML = `<span style="background:${p.brand}"></span><span style="background:${p.accent}"></span>`;
+    btn.addEventListener('click', () => {
+      setBrand(p.brand); setAccent(p.accent); setLIcon(p.licon); setSIcon(p.sicon);
+      applyVariant('theme', p.theme);
+      // Optional font override
+      if (p.font) {
+        selFont.value = p.font;
+        applyToken('font-family', p.font);
+      }
+      // Optional surface overrides — applyVariant('theme') just synchronously
+      // cleared them above, so apply now (also synchronously) and the
+      // preset's curated palette wins.
+      if (p.surfaces) {
+        Object.entries(p.surfaces).forEach(([k, v]) => {
+          SURFACE_OVERRIDES[k] = v;
+          root.style.setProperty('--ns-' + k, v);
+        });
+        renderOutput();
+      }
+      syncSurfacePickers();
+      document.querySelectorAll('.preset-btn').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+    });
+    const lab = document.createElement('div');
+    lab.className = 'preset-label';
+    lab.textContent = p.name;
+    wrap.appendChild(btn);
+    wrap.appendChild(lab);
+    presetsEl.appendChild(wrap);
+    if (i === 0) btn.setAttribute('aria-pressed', 'true');
+  });
+
+  // ============================================================
+  // Chat behaviour
+  // ============================================================
+  const launcher = document.getElementById('launcher');
+  const btnClose = document.getElementById('btn-close');
+  const badge = document.getElementById('badge');
+
+  function setOpen(v) {
+    root.setAttribute('data-open', v ? 'true' : 'false');
+    launcher.setAttribute('aria-label', v ? 'Close chat' : 'Open chat');
+    if (v) {
+      badge.style.display = 'none';
+      runInitialCascade();
+    }
+  }
+  let initialCascadeRan = false;
+  function runInitialCascade() {
+    if (initialCascadeRan) return;
+    initialCascadeRan = true;
+    // First-open: one quiet fade-up on the whole body. No per-row cascade —
+    // the conversation is supposed to already be there, not arriving.
+    body.classList.add('ns-first-open');
+    setTimeout(() => body.classList.remove('ns-first-open'), 500);
+    body.scrollTop = body.scrollHeight;
+  }
+  launcher.addEventListener('click', () => setOpen(root.getAttribute('data-open') !== 'true'));
+  btnClose.addEventListener('click', () => setOpen(false));
+
+  // textarea auto-grow + send
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
+  const body = document.getElementById('body');
+
+  function autosize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(110, input.scrollHeight) + 'px';
+    send.disabled = !input.value.trim();
+  }
+  input.addEventListener('input', autosize);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+  });
+  send.addEventListener('click', doSend);
+
+  function addMessage(text, side) {
+    // remove typing if present at end
+    const typing = document.getElementById('typing-row');
+    if (typing) typing.remove();
+
+    const row = document.createElement('div');
+    row.className = 'ns-msg-row ns-fresh ' + side;
+    if (side === 'in') {
+      const av = document.createElement('div');
+      av.className = 'ns-msg-avatar';
+      av.textContent = (HEADER.title || 'N').trim().charAt(0).toUpperCase();
+      row.appendChild(av);
+    }
+    const bub = document.createElement('div');
+    bub.className = 'ns-bubble ' + side;
+    bub.textContent = text;
+    row.appendChild(bub);
+    body.appendChild(row);
+
+    const meta = document.createElement('div');
+    meta.className = 'ns-meta-row ns-fresh';
+    meta.style.textAlign = side === 'out' ? 'right' : 'left';
+    const now = new Date();
+    const hh = now.getHours().toString().padStart(2,'0');
+    const mm = now.getMinutes().toString().padStart(2,'0');
+    meta.innerHTML = `<span class="ns-meta">${side === 'out' ? 'Delivered' : (HEADER.title || 'Bot')} · ${hh}:${mm}</span>`;
+    body.appendChild(meta);
+
+    // smooth scroll-to-bottom while bubble pops in
+    requestAnimationFrame(() => {
+      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    });
+  }
+
+  function showTyping() {
+    const existing = document.getElementById('typing-row');
+    if (existing) return;
+    const row = document.createElement('div');
+    row.className = 'ns-msg-row in ns-fresh';
+    row.id = 'typing-row';
+    row.innerHTML = `<div class="ns-msg-avatar">${(HEADER.title || 'N').trim().charAt(0).toUpperCase()}</div><div class="ns-typing"><span></span><span></span><span></span></div>`;
+    body.appendChild(row);
+    requestAnimationFrame(() => {
+      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    });
+  }
+
+  function doSend() {
+    const t = input.value.trim();
+    if (!t) return;
+    addMessage(t, 'out');
+    input.value = '';
+    autosize();
+    setTimeout(showTyping, 350);
+    setTimeout(() => {
+      addMessage(replyFor(t), 'in');
+    }, 1400 + Math.random() * 600);
+  }
+
+  function replyFor(t) {
+    const lt = t.toLowerCase();
+    if (lt.includes('pric'))      return "Our pricing starts at $19/mo. The full breakdown is on the pricing page — want me to share a link?";
+    if (lt.includes('integrat'))  return "We integrate with Slack, Linear, Notion, Salesforce, and 30+ more. Which one are you using?";
+    if (lt.includes('human') || lt.includes('agent')) return "Got it — I'll get a human teammate. Mind sharing your email so they can follow up?";
+    if (lt.includes('hello') || lt.includes('hi')) return "Hey! Happy to help. What's on your mind?";
+    return "Thanks for the message — let me look that up. In the meantime, anything else I can help with?";
+  }
+
+  // quick replies
+  document.querySelectorAll('.ns-quick button').forEach(b => {
+    b.addEventListener('click', () => {
+      input.value = b.dataset.q;
+      autosize();
+      doSend();
+    });
+  });
+
+  // ============================================================
+  // Init — push all defaults through
+  // ============================================================
+  function init() {
+    // tokens
+    setBrand(TOKENS['brand-color']);
+    setAccent(TOKENS['brand-accent']);
+    setLIcon(TOKENS['launcher-icon-color']);
+    setSIcon(TOKENS['send-icon-color']);
+    setPW(parseInt(TOKENS['panel-width']));
+    setPH(parseInt(TOKENS['panel-height']));
+    setLS(parseInt(TOKENS['launcher-size']));
+    setPR(parseInt(TOKENS['panel-radius']));
+    setBR(parseInt(TOKENS['bubble-radius']));
+    setFS(parseInt(TOKENS['font-size-base']));
+    selFont.value = TOKENS['font-family'];
+
+    // variants
+    Object.entries(VARIANTS).forEach(([k,v]) => applyVariant(k, v));
+
+    // header
+    inTitle.value = HEADER.title;
+    inSubtitle.value = HEADER.subtitle;
+
+    renderIcon();
+    renderOutput();
+    requestAnimationFrame(syncSurfacePickers);
+  }
+  init();
+</script>
+</body>
+</html>

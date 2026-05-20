@@ -1,0 +1,279 @@
+[
+  {
+    "id": "cap_mpcqhmem_qsy2wp",
+    "selector": "div.migrate-wrap",
+    "label": "Get set up in minutes. Hours back every …",
+    "tag": "div",
+    "url": "https://strawberrybrowser.com/",
+    "title": "Strawberry Browser | Do hours of work in minutes",
+    "timestamp": "2026-05-19T14:34:14.830Z",
+    "innerText": "Get set up in minutes. Hours back every day.\n\nBring your passwords, bookmarks, and history with you. A personal AI assistant is set up for you automatically and ready to get to work immediately.\n\nNot ready to switch browsers? That's fine. You can use Strawberry alongside your current browser.\n\nDownload for Mac\nImport your current browser's data with ease. It'll feel like you never even left your old browser\nHave a personal AI assistant ready to work for you in minutes",
+    "outerHTML": "<div class=\"migrate-wrap svelte-skv6c4 migrate-visible\"><div class=\"migrate-layout svelte-skv6c4\"><div class=\"migrate-left svelte-skv6c4\"><div class=\"migrate-text-block svelte-skv6c4\"><h2 class=\"heading-x-large migrate-heading svelte-skv6c4\">Get set up in minutes. Hours back every day.</h2> <p class=\"migrate-description svelte-skv6c4\">Bring your passwords, bookmarks, and history with you. A personal AI assistant is set\n              up for you automatically and ready to get to work immediately. <br class=\"svelte-skv6c4\"><br class=\"svelte-skv6c4\"> <span style=\"font-style: italic; margin-right: 4px;\" class=\"svelte-skv6c4\">Not ready to switch browsers?</span> That's fine. You can use Strawberry alongside your current browser.</p></div> <div class=\"migrate-cta-wrap svelte-skv6c4\"><a href=\"/download\" class=\"dl dl-md  svelte-14fpcrs\" aria-busy=\"false\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"dl-icon svelte-14fpcrs\"><path d=\"M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z\"></path></svg><!----> Download for Mac</a><!----></div></div> <div class=\"migrate-flow svelte-skv6c4\"><div class=\"migrate-flow-visual svelte-skv6c4\"><div class=\"browser-grid svelte-skv6c4\"><span class=\"browser-icon svelte-skv6c4\" title=\"Chrome\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/chrome.webp\" alt=\"Chrome\"></span><span class=\"browser-icon svelte-skv6c4\" title=\"Safari\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/safari.png\" alt=\"Safari\"></span><span class=\"browser-icon svelte-skv6c4\" title=\"Firefox\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/firefox.svg\" alt=\"Firefox\"></span><span class=\"browser-icon svelte-skv6c4\" title=\"Edge\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/edge.png\" alt=\"Edge\"></span><span class=\"browser-icon svelte-skv6c4\" title=\"Arc\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/arc.png\" alt=\"Arc\"></span><span class=\"browser-icon svelte-skv6c4\" title=\"Brave\"><img width=\"36\" height=\"36\" class=\"browser-icon-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\" src=\"/images/browsers/brave.png\" alt=\"Brave\"></span></div> <div class=\"arrow-line svelte-skv6c4\"></div> <div class=\"strawberry-node svelte-skv6c4\"><img src=\"/images/logo-512.png\" alt=\"Strawberry\" width=\"56\" height=\"56\" class=\"strawberry-img svelte-skv6c4\" loading=\"lazy\" decoding=\"async\"></div> <div class=\"arrow-line svelte-skv6c4\"></div> <div class=\"companion-node svelte-skv6c4\"><!----><div class=\"companion-container  svelte-w7vzkc\" style=\"width: 80px; height: 100px;\"><video class=\"companion-video svelte-w7vzkc\" autoplay=\"\" loop=\"\" playsinline=\"playsinline\" disablepictureinpicture=\"\" poster=\"/videos/companions/posters/b-sitting.webp\" preload=\"metadata\" style=\"width: 140px; height: 140px;\" webkit-playsinline=\"webkit-playsinline\" x-webkit-airplay=\"deny\"><source type=\"video/mp4; codecs=&quot;hvc1&quot;\" src=\"/videos/companions/b-sitting.mp4\"> <source type=\"video/webm\" src=\"/videos/companions/b-sitting.webm\"></video> <div class=\"companion-overlay svelte-w7vzkc\" style=\"width: 140px; height: 140px;\"></div></div><!----></div></div> <div class=\"migrate-flow-labels svelte-skv6c4\"><div class=\"label-spacer svelte-skv6c4\"></div> <span class=\"flow-label svelte-skv6c4\">Import your current browser's data with ease. <span style=\"font-style: italic;\" class=\"svelte-skv6c4\">It'll feel like you never even left your old browser</span></span> <div class=\"label-spacer svelte-skv6c4\"></div> <span class=\"flow-label svelte-skv6c4\">Have a personal AI assistant ready to work for you in minutes</span> <div class=\"label-spacer svelte-skv6c4\"></div></div></div></div></div>",
+    "rect": {
+      "x": 236,
+      "y": 126,
+      "width": 1040,
+      "height": 596
+    },
+    "computedStyles": {
+      "display": "flex",
+      "position": "relative",
+      "top": "0px",
+      "right": "0px",
+      "bottom": "0px",
+      "left": "0px",
+      "width": "1040px",
+      "height": "596px",
+      "margin": "72px 0px",
+      "padding": "64px",
+      "border": "0px solid rgb(239, 230, 220)",
+      "border-radius": "24px",
+      "box-sizing": "border-box",
+      "background": "rgb(247, 242, 237) none repeat scroll 0% 0% / auto padding-box border-box",
+      "color": "rgb(37, 37, 34)",
+      "font-family": "\"Strawberry Sans\", system-ui, -apple-system, sans-serif",
+      "font-size": "16px",
+      "line-height": "24px",
+      "text-decoration": "none",
+      "flex-direction": "column",
+      "overflow": "hidden",
+      "transition": "all"
+    },
+    "cssRules": [
+      {
+        "selector": "*, ::before, ::after",
+        "css": "--tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / .5); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box; border-width: 0px; border-style: solid; border-color: rgb(229, 231, 235);"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box;"
+      },
+      {
+        "selector": "*",
+        "css": "margin: 0px; border-color: hsl(var(--border));"
+      },
+      {
+        "selector": ".migrate-wrap.svelte-skv6c4",
+        "css": "overflow: hidden; position: relative; width: 100%; padding: 2.5rem 0px; display: flex; flex-direction: column;"
+      },
+      {
+        "selector": ".migrate-wrap.svelte-skv6c4",
+        "css": "background-color: var(--bg-secondary); border-radius: var(--rounded-xl); margin: 4.5rem 0px; padding: 3rem;",
+        "media": "(min-width: 768px)"
+      },
+      {
+        "selector": ".migrate-wrap.svelte-skv6c4",
+        "css": "padding: 4rem;",
+        "media": "(min-width: 1024px)"
+      }
+    ]
+  },
+  {
+    "id": "cap_mpcqhnw8_kdo48q",
+    "selector": "a.dl",
+    "label": "Download for Mac",
+    "tag": "a",
+    "url": "https://strawberrybrowser.com/",
+    "title": "Strawberry Browser | Do hours of work in minutes",
+    "timestamp": "2026-05-19T14:34:16.761Z",
+    "innerText": "Download for Mac",
+    "outerHTML": "<a href=\"/download\" class=\"dl dl-md  svelte-14fpcrs\" aria-busy=\"false\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\" class=\"dl-icon svelte-14fpcrs\"><path d=\"M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z\"></path></svg><!----> Download for Mac</a>",
+    "rect": {
+      "x": 300,
+      "y": 617,
+      "width": 184,
+      "height": 41
+    },
+    "computedStyles": {
+      "display": "inline-flex",
+      "width": "183.844px",
+      "height": "41px",
+      "padding": "10px 24px",
+      "border": "0px solid rgb(239, 230, 220)",
+      "border-radius": "100px",
+      "box-sizing": "border-box",
+      "background": "rgb(37, 37, 34) none repeat scroll 0% 0% / auto padding-box border-box",
+      "color": "rgb(255, 252, 250)",
+      "opacity": "0.9",
+      "font-family": "\"Strawberry Sans\", system-ui, -apple-system, sans-serif",
+      "font-size": "14px",
+      "font-weight": "500",
+      "line-height": "21px",
+      "text-decoration": "none",
+      "align-items": "center",
+      "gap": "6px",
+      "transition": "opacity 0.15s",
+      "cursor": "pointer"
+    },
+    "cssRules": [
+      {
+        "selector": "*, ::before, ::after",
+        "css": "--tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / .5); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box; border-width: 0px; border-style: solid; border-color: rgb(229, 231, 235);"
+      },
+      {
+        "selector": "a",
+        "css": "color: inherit; text-decoration: inherit;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box;"
+      },
+      {
+        "selector": "*",
+        "css": "margin: 0px; border-color: hsl(var(--border));"
+      },
+      {
+        "selector": "a",
+        "css": "text-decoration: none; color: inherit;"
+      },
+      {
+        "selector": ".dl.svelte-14fpcrs",
+        "css": "display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 100px; font-weight: 500; background-color: var(--text-primary); color: var(--bg-primary); text-decoration: none; transition: opacity 0.15s; cursor: pointer;"
+      },
+      {
+        "selector": ".dl.svelte-14fpcrs:hover",
+        "css": "opacity: 0.9;"
+      },
+      {
+        "selector": ".dl-md.svelte-14fpcrs",
+        "css": "padding: 0.625rem 1.5rem; font-size: 0.875rem;"
+      }
+    ]
+  },
+  {
+    "id": "cap_mpcqhto4_eh6qrh",
+    "selector": "div.use-case-card",
+    "label": "Data Extraction Point Strawberry at any …",
+    "tag": "div",
+    "url": "https://strawberrybrowser.com/",
+    "title": "Strawberry Browser | Do hours of work in minutes",
+    "timestamp": "2026-05-19T14:34:24.244Z",
+    "innerText": "Data Extraction\n\nPoint Strawberry at any website and get clean, structured data back. No scrapers, no code, no CSV wrangling. Just tell it what you need.\n\nSee how\n→",
+    "outerHTML": "<div class=\"use-case-card svelte-skv6c4\"><div class=\"favicon-strip svelte-skv6c4\"><span class=\"favicon-slot svelte-skv6c4\" style=\"transform: rotate(1deg);\"><img alt=\"\" loading=\"lazy\" decoding=\"async\" src=\"/icons/brands/crunchbase.svg\" width=\"20\" height=\"20\" class=\"brand-icon  svelte-1kfodam\"><!----></span><span class=\"favicon-slot svelte-skv6c4\" style=\"transform: rotate(-3deg);\"><img alt=\"\" loading=\"lazy\" decoding=\"async\" src=\"/icons/brands/google-maps.svg\" width=\"20\" height=\"20\" class=\"brand-icon  svelte-1kfodam\"><!----></span><span class=\"favicon-slot svelte-skv6c4\" style=\"transform: rotate(2.5deg);\"><img alt=\"\" loading=\"lazy\" decoding=\"async\" src=\"/icons/brands/yelp.svg\" width=\"20\" height=\"20\" class=\"brand-icon  svelte-1kfodam\"><!----></span><span class=\"favicon-slot svelte-skv6c4\" style=\"transform: rotate(2deg);\"><img alt=\"\" loading=\"lazy\" decoding=\"async\" src=\"/icons/brands/zillow.svg\" width=\"20\" height=\"20\" class=\"brand-icon  svelte-1kfodam\"><!----></span></div><!----> <h3 class=\"card-title svelte-skv6c4\">Data Extraction</h3> <p class=\"card-description svelte-skv6c4\">Point Strawberry at any website and get clean, structured data back. No scrapers, no code, no CSV wrangling. Just tell it what you need.</p> <div class=\"card-action svelte-skv6c4\"><a class=\"card-link svelte-skv6c4\" href=\"/use-cases/data-extraction\">See how <span class=\"card-arrow svelte-skv6c4\" aria-hidden=\"true\">→</span></a></div></div>",
+    "rect": {
+      "x": 589,
+      "y": 295,
+      "width": 333,
+      "height": 356
+    },
+    "computedStyles": {
+      "display": "flex",
+      "width": "333.336px",
+      "height": "355.969px",
+      "padding": "32px",
+      "border": "0px solid rgb(239, 230, 220)",
+      "border-radius": "24px",
+      "box-sizing": "border-box",
+      "background": "rgb(247, 242, 237) none repeat scroll 0% 0% / auto padding-box border-box",
+      "color": "rgb(37, 37, 34)",
+      "font-family": "\"Strawberry Sans\", system-ui, -apple-system, sans-serif",
+      "font-size": "16px",
+      "line-height": "24px",
+      "text-decoration": "none",
+      "flex-direction": "column",
+      "transition": "all"
+    },
+    "cssRules": [
+      {
+        "selector": "*, ::before, ::after",
+        "css": "--tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / .5); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box; border-width: 0px; border-style: solid; border-color: rgb(229, 231, 235);"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box;"
+      },
+      {
+        "selector": "*",
+        "css": "margin: 0px; border-color: hsl(var(--border));"
+      },
+      {
+        "selector": ".use-case-card.svelte-skv6c4",
+        "css": "display: flex; flex-direction: column; background-color: var(--bg-secondary); padding: 2rem; border-radius: var(--rounded-xl);"
+      }
+    ]
+  },
+  {
+    "id": "cap_mpcqhvfu_0thh1c",
+    "selector": "a.card-link",
+    "label": "See how →",
+    "tag": "a",
+    "url": "https://strawberrybrowser.com/",
+    "title": "Strawberry Browser | Do hours of work in minutes",
+    "timestamp": "2026-05-19T14:34:26.538Z",
+    "innerText": "See how\n→",
+    "outerHTML": "<a class=\"card-link svelte-skv6c4\" href=\"/use-cases/data-extraction\">See how <span class=\"card-arrow svelte-skv6c4\" aria-hidden=\"true\">→</span></a>",
+    "rect": {
+      "x": 621,
+      "y": 582,
+      "width": 111,
+      "height": 37
+    },
+    "computedStyles": {
+      "display": "inline-flex",
+      "width": "111.062px",
+      "height": "37px",
+      "padding": "8px 20px",
+      "border": "0px solid rgb(239, 230, 220)",
+      "border-radius": "100px",
+      "box-sizing": "border-box",
+      "background": "rgb(37, 37, 34) none repeat scroll 0% 0% / auto padding-box border-box",
+      "color": "rgb(255, 252, 250)",
+      "opacity": "0.9",
+      "font-family": "\"Strawberry Sans\", system-ui, -apple-system, sans-serif",
+      "font-size": "14px",
+      "font-weight": "500",
+      "line-height": "21px",
+      "text-decoration": "none",
+      "align-items": "center",
+      "gap": "6px",
+      "transition": "opacity 0.2s",
+      "cursor": "pointer"
+    },
+    "cssRules": [
+      {
+        "selector": "*, ::before, ::after",
+        "css": "--tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / .5); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box; border-width: 0px; border-style: solid; border-color: rgb(229, 231, 235);"
+      },
+      {
+        "selector": "a",
+        "css": "color: inherit; text-decoration: inherit;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "box-sizing: border-box;"
+      },
+      {
+        "selector": "*",
+        "css": "margin: 0px; border-color: hsl(var(--border));"
+      },
+      {
+        "selector": "a",
+        "css": "text-decoration: none; color: inherit;"
+      },
+      {
+        "selector": ".card-link.svelte-skv6c4",
+        "css": "display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1.25rem; border-radius: 100px; font-size: 0.875rem; font-weight: 500; background-color: var(--text-primary); color: var(--bg-primary); transition: opacity 0.2s;"
+      },
+      {
+        "selector": ".card-link.svelte-skv6c4:hover",
+        "css": "opacity: 0.9;"
+      }
+    ]
+  }
+]

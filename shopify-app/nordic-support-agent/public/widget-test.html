@@ -75,8 +75,7 @@
       <p class="hint" id="status"></p>
     </div>
     <script>
-      document.getElementById('load').addEventListener('click', function () {
-        var token = document.getElementById('token').value.trim();
+      function loadWidget(token) {
         if (!token) {
           document.getElementById('status').textContent = 'Token required.';
           return;
@@ -84,6 +83,9 @@
         window.NORDIC_SUPPORT = {
           token: token,
           apiUrl: window.location.origin + '/api/chat',
+          // ?open=1 opens the panel immediately. The dashboard's
+          // preview iframe passes this so the user sees the chrome.
+          defaultOpen: new URLSearchParams(window.location.search).get('open') === '1',
         };
         var s = document.createElement('script');
         s.src = '/widget.js';
@@ -91,7 +93,18 @@
         document.body.appendChild(s);
         document.getElementById('status').textContent =
           'Widget loaded. Look bottom-right.';
+      }
+      document.getElementById('load').addEventListener('click', function () {
+        loadWidget(document.getElementById('token').value.trim());
       });
+      // Auto-load when the dashboard passes ?token=… so /preview/chat can
+      // open this page and immediately render the production widget.
+      var qs = new URLSearchParams(window.location.search);
+      var qToken = qs.get('token');
+      if (qToken) {
+        document.getElementById('token').value = qToken;
+        loadWidget(qToken);
+      }
     </script>
   </body>
 </html>
