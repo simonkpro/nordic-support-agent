@@ -155,12 +155,17 @@ export default function OnboardingKnowledge() {
   const revalidator = useRevalidator();
 
   // Re-fetch the doc list after an upload or delete completes.
+  // NB: do NOT depend on `revalidator` — useRevalidator() returns a
+  // fresh object reference on every render, so including it makes the
+  // effect re-run after each revalidate() and loop forever.
   useEffect(() => {
     if (uploadFetcher.state === 'idle' && uploadFetcher.data) revalidator.revalidate();
-  }, [uploadFetcher.state, uploadFetcher.data, revalidator]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadFetcher.state, uploadFetcher.data]);
   useEffect(() => {
     if (deleteFetcher.state === 'idle' && deleteFetcher.data) revalidator.revalidate();
-  }, [deleteFetcher.state, deleteFetcher.data, revalidator]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteFetcher.state, deleteFetcher.data]);
 
   const indexed = data.documents.filter((d) => d.status === 'indexed').length;
   const ingesting = data.documents.filter((d) => d.status === 'ingesting').length;
@@ -305,7 +310,8 @@ function SitemapTab({ initialData }: { initialData: LoaderData }) {
     if (!started) return;
     const id = setInterval(() => revalidator.revalidate(), 4000);
     return () => clearInterval(id);
-  }, [started, revalidator]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started]);
 
   return (
     <fetcher.Form method="post" id="onboarding-form">

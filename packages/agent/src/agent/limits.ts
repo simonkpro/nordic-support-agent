@@ -11,6 +11,13 @@ export const LIMITS = {
   maxUserMessageChars: 1000,
   /** Max total characters across all user turns in a conversation. */
   maxTotalUserChars: 8000,
+  /**
+   * Max number of customer messages per conversation. After this the
+   * widget refuses further sends and points the customer to escalation.
+   * Keeps cost bounded and limits abuse — a real support chat is rarely
+   * more than ~5 customer turns.
+   */
+  maxUserTurns: 10,
   /** Max number of turns (user + assistant combined) in the message history. */
   maxConversationTurns: 30,
   /** Cap on the model's response tokens. ~600 tokens ≈ 450 words. */
@@ -44,6 +51,7 @@ export function enforceLimits(messages: InputMessage[]): void {
   }
 
   let totalUserChars = 0;
+  let userTurns = 0;
   for (const m of messages) {
     if (typeof m.content !== 'string') continue;
     if (m.role === 'user') {
@@ -54,7 +62,14 @@ export function enforceLimits(messages: InputMessage[]): void {
         );
       }
       totalUserChars += m.content.length;
+      userTurns += 1;
     }
+  }
+  if (userTurns > LIMITS.maxUserTurns) {
+    throw new LimitExceededError(
+      'too_many_turns',
+      `Conversation reached ${LIMITS.maxUserTurns} customer messages. Start a new chat or escalate to a human agent.`,
+    );
   }
   if (totalUserChars > LIMITS.maxTotalUserChars) {
     throw new LimitExceededError(

@@ -25,12 +25,26 @@ describe('checkLimitsForNewMessage', () => {
   });
 
   it('allows turn at exactly the cap minus one', () => {
-    const justUnder: StoredMessage[] = Array.from({ length: 29 }, () => ({
-      role: 'user' as const,
+    // 9 user + 20 assistant = 29 prior turns. Adding one more user
+    // lands at 10 user turns (== maxUserTurns) and 30 total (==
+    // maxConversationTurns) — both at their caps, neither over.
+    const justUnder: StoredMessage[] = Array.from({ length: 29 }, (_, i) => ({
+      role: (i < 9 ? 'user' : 'assistant') as 'user' | 'assistant',
       content: 'x',
       at: new Date().toISOString(),
     }));
     expect(() => checkLimitsForNewMessage(justUnder, 'ok')).not.toThrow();
+  });
+
+  it('rejects an 11th customer message', () => {
+    const tenUserTurns: StoredMessage[] = Array.from({ length: 10 }, () => ({
+      role: 'user' as const,
+      content: 'x',
+      at: new Date().toISOString(),
+    }));
+    expect(() => checkLimitsForNewMessage(tenUserTurns, 'one more')).toThrowError(
+      LimitExceededError,
+    );
   });
 
   it('rejects when total user chars across history + new message exceeds cap', () => {

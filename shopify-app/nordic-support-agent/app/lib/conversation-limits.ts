@@ -28,6 +28,13 @@ export function checkLimitsForNewMessage(
       `Conversation exceeded ${LIMITS.maxConversationTurns} turns.`,
     );
   }
+  const priorUserTurns = current.filter((m) => m.role === 'user').length;
+  if (priorUserTurns + 1 > LIMITS.maxUserTurns) {
+    throw new LimitExceededError(
+      'too_many_turns',
+      `Conversation reached ${LIMITS.maxUserTurns} customer messages.`,
+    );
+  }
   const totalUserChars =
     current.filter((m) => m.role === 'user').reduce((s, m) => s + m.content.length, 0) +
     newUserMessage.length;
