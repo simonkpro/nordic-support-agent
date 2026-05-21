@@ -857,8 +857,11 @@
     var modalOkEl = root.querySelector('.ns-modal-ok');
 
     // ----- State -----
+    // Conversation is in-memory only: a hard refresh starts a fresh chat.
+    // Persisting across page loads led to the bot recalling prior sessions
+    // from hours/days ago, which is not what a support widget should do.
     var sessionId = null;
-    try { sessionId = localStorage.getItem(STORAGE_KEY); } catch (_) {}
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
     var sending = false;
     var firstOpenDone = false;
     var greetingShown = false;
@@ -1027,7 +1030,6 @@
           var sid = res.headers.get('X-Conversation-Id');
           if (sid) {
             sessionId = sid;
-            try { localStorage.setItem(STORAGE_KEY, sid); } catch (_) {}
           }
           if (!res.body) throw new Error('no_stream_body');
           return consumeStream(res.body);
