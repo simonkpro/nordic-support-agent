@@ -11,10 +11,12 @@ import {
 } from '../components/admin-shell';
 import {
   getActivityHeatmap,
+  getKnowledgeGaps,
   getOverview,
   getRecentEscalations,
   getResponseTimeStats,
   type ActivityHeatmap,
+  type KnowledgeGap,
   type OverviewKpis,
   type RecentEscalation,
   type ResponseTimeStats,
@@ -53,6 +55,7 @@ interface LoaderData {
   heatmap: ActivityHeatmap;
   responseTime: ResponseTimeStats;
   recentEscalations: RecentEscalation[];
+  knowledgeGaps: KnowledgeGap[];
   businessType:
     | 'ecommerce'
     | 'beauty_clinic'
@@ -80,15 +83,23 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const from = new Date(to.getTime() - preset.days * 24 * 60 * 60 * 1000);
 
-  const [kpis, heatmap, responseTime, recentEscalations, defaultAssistant, onboardingDone] =
-    await Promise.all([
-      getOverview({ shop, from, to }),
-      getActivityHeatmap(shop, from, to),
-      getResponseTimeStats(shop, from, to),
-      getRecentEscalations(shop, 5),
-      loadOrCreateDefaultAssistant(shop),
-      session ? isOnboardingComplete(session.workspaceId) : Promise.resolve(true),
-    ]);
+  const [
+    kpis,
+    heatmap,
+    responseTime,
+    recentEscalations,
+    knowledgeGaps,
+    defaultAssistant,
+    onboardingDone,
+  ] = await Promise.all([
+    getOverview({ shop, from, to }),
+    getActivityHeatmap(shop, from, to),
+    getResponseTimeStats(shop, from, to),
+    getRecentEscalations(shop, 5),
+    getKnowledgeGaps({ shop, from, to }),
+    loadOrCreateDefaultAssistant(shop),
+    session ? isOnboardingComplete(session.workspaceId) : Promise.resolve(true),
+  ]);
 
   return {
     workspaceName: session?.workspaceName ?? 'Preview shop',
@@ -98,6 +109,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
     heatmap,
     responseTime,
     recentEscalations,
+    knowledgeGaps,
     businessType: defaultAssistant.config.business.type,
     onboardingDone,
   };
@@ -182,6 +194,11 @@ export default function InsightsIndex() {
           title="Kundnöjdhet"
           body="Kunder kommer få ge tummen upp eller ner efter varje chatt. Snittbetyget och fördelning per ärendetyp visas här."
         />
+      </div>
+
+      {/* Knowledge gaps — questions whose KB match scored below threshold */}
+      <div style={{ marginBottom: 28 }}>
+        <KnowledgeGapsCard gaps={data.knowledgeGaps} />
       </div>
 
       {/* Languages + origin hosts */}
@@ -505,6 +522,84 @@ function parseHex(h: string): { r: number; g: number; b: number } {
     g: parseInt(s.slice(2, 4), 16),
     b: parseInt(s.slice(4, 6), 16),
   };
+}
+
+function KnowledgeGapsCard({ gaps }: { gaps: KnowledgeGap[] }) {
+  return (
+    <Card>
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Frågor utan svar i din kunskapsbas</SectionLabel>
+        <p
+          style={{
+            margin: '6px 0 0',
+            fontSize: 12,
+            color: SHELL_TOKENS.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          Kunder har frågat om dessa ämnen, men din sajt eller dina dokument
+          täcker dem inte tillräckligt bra. Att lägga till innehåll här
+          minskar antalet eskalerade ärenden.
+        </p>
+      </div>
+      {gaps.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: SHELL_TOKENS.muted }}>
+          Inga luckor att rapportera just nu — boten hittade relevant
+          innehåll till varje fråga i den valda perioden.
+        </p>
+      ) : (
+        <ul
+          style={{
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+        >
+          {gaps.map((g) => (
+            <li
+              key={g.query}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto auto',
+                gap: 12,
+                alignItems: 'baseline',
+                padding: '10px 0',
+                borderTop: `1px solid ${SHELL_TOKENS.line}`,
+                fontSize: 13,
+              }}
+            >
+              <span style={{ color: SHELL_TOKENS.ink }}>{g.query}</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: SHELL_TOKENS.muted,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+                title={`Bästa träff: ${g.topScore}`}
+              >
+                {(g.topScore * 100).toFixed(0)}% match
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: SHELL_TOKENS.ink,
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                  minWidth: 28,
+                  textAlign: 'right',
+                }}
+              >
+                {g.count}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
 }
 
 function ComingSoonCard({ title, body }: { title: string; body: string }) {

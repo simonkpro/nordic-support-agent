@@ -548,3 +548,98 @@ function safeJson(s: string): unknown {
     return s;
   }
 }
+
+export interface KnowledgeGap {
+  /** Normalized question (lowercased, trimmed, collapsed whitespace). */
+  query: string;
+  /** Number of times a similar question was asked in the window. */
+  count: number;
+  /** Best score the retrieval got for any occurrence — closer to 1 = better. */
+  topScore: number;
+  /** Most recent occurrence. */
+  lastSeen: string;
+}
+
+/**
+ * Topics customers ask about that the merchant's knowledge base doesn't
+ * really cover. Implementation: scan search_knowledge_base tool calls in
+ * the window, parse each result list, and flag queries whose best match
+ * scored below `scoreThreshold`. Group by normalized query and rank by
+ * count desc.
+ *
+ * The threshold is intentionally conservative — pgvector cosine sims
+ * around 0.5 still surface something tangentially related; we want the
+ * "the KB has nothing close" tail, not "good answer that could be
+ * better." Tune once we have feedback.
+ *
+ * Bounded by the 24h Conversation retention window (ToolCall rows are
+ * deleted with the conversation). For longer horizons we'd need a
+ * dedicated retained table — punt until the signal proves out.
+ */
+export async function getKnowledgeGaps({
+  shop,
+  from,
+  to,
+  assistantId,
+  scoreThreshold = 0.55,
+  limit = 10,
+}: {
+  shop: string;
+  from: Date;
+  to: Date;
+  assistantId?: string | null;
+  scoreThreshold?: number;
+  limit?: number;
+}): Promise<KnowledgeGap[]> {
+  const rows = await prisma.toolCall.findMany({
+    where: {
+      name: 'search_knowledge_base',
+      at: { gte: from, lte: to },
+      conversation: { shop, ...(assistantId ? { assistantId } : {}) },
+    },
+    select: { input: true, output: true, at: true },
+    orderBy: { at: 'desc' },
+    take: 2000,
+  });
+
+  const buckets = new Map<string, { count: number; topScore: number; lastSeen: Date }>();
+  for (const r of rows) {
+    let query = '';
+    let topScore = 0;
+    try {
+      const inp = JSON.parse(r.input);
+      query = typeof inp?.query === 'string' ? inp.query : '';
+    } catch { /* skip */ }
+    try {
+      const out = JSON.parse(r.output);
+      const results = Array.isArray(out?.results) ? out.results : [];
+      for (const res of results) {
+        const s = typeof res?.score === 'number' ? res.score : 0;
+        if (s > topScore) topScore = s;
+      }
+    } catch { /* skip */ }
+
+    if (!query) continue;
+    if (topScore >= scoreThreshold) continue;
+
+    const key = query.toLowerCase().trim().replace(/\s+/g, ' ');
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (topScore > existing.topScore) existing.topScore = topScore;
+      if (r.at > existing.lastSeen) existing.lastSeen = r.at;
+    } else {
+      buckets.set(key, { count: 1, topScore, lastSeen: r.at });
+    }
+  }
+
+  return [...buckets.entries()]
+    .map(([query, b]) => ({
+      query,
+      count: b.count,
+      topScore: Number(b.topScore.toFixed(3)),
+      lastSeen: b.lastSeen.toISOString(),
+    }))
+    .sort((a, b) => b.count - a.count || b.topScore - a.topScore)
+    .slice(0, limit);
+}
