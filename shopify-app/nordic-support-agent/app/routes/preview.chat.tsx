@@ -875,7 +875,7 @@ function PreviewBody({
         >
           {/* Assistant selector — matches the rest of the panel's light theme. */}
           <SectionHeader
-            label="Active assistant"
+            label="Aktiv assistent"
             open={openSection === 'active'}
             onClick={() => toggle('active')}
             first

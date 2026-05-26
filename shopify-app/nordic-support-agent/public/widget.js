@@ -43,6 +43,21 @@
 
   function resolveConfig(inline) {
     if (typeof inline.token === 'string' && typeof inline.apiUrl === 'string') {
+      // Peek at the token payload (no verification — server still verifies)
+      // to recover assistant id + origin, so the privacy footer link works
+      // in the inline-config path too. Without this, the widget falls back
+      // to the "Drivs av {brand}" footer.
+      try {
+        var payloadB64 = inline.token.split('.')[0];
+        if (payloadB64) {
+          var json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+          var payload = JSON.parse(json);
+          if (payload && typeof payload.aid === 'string') {
+            ASSISTANT_ID = payload.aid;
+          }
+        }
+        SCRIPT_ORIGIN = new URL(inline.apiUrl).origin;
+      } catch (_) { /* footer falls back to powered-by */ }
       return Promise.resolve({ token: inline.token, apiUrl: inline.apiUrl });
     }
     var scriptTag = document.querySelector('script[data-assistant][src]');
@@ -1231,7 +1246,7 @@
           sub.style.display = tk.subtitle ? '' : 'none';
         }
       }
-      if (typeof tk.placeholder === 'string') {
+      if (typeof tk.placeholder === 'string' && tk.placeholder.trim()) {
         var inp = root.querySelector('#input');
         if (inp) inp.setAttribute('placeholder', tk.placeholder);
       }

@@ -191,7 +191,7 @@ export const AssistantConfigSchema = z.object({
       .string()
       .regex(/^#[0-9a-fA-F]{3,8}$/)
       .default('#ffffff'),
-    placeholder: z.string().max(80).default('Type your message…'),
+    placeholder: z.string().max(80).default(''),
     width: z.number().int().min(300).max(600).default(380),
     height: z.number().int().min(400).max(800).default(600),
     /** Launcher button diameter in px (corresponds to --ns-launcher-size). */

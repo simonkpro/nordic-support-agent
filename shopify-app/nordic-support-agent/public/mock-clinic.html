@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Klinike — Hudvård i Stockholm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --muted: #6b6b66;
+        --bg: #f6f3ee;
+        --card: #ffffff;
+        --accent: #3d4a3d;
+        --line: #e6e1d8;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.55;
+      }
+      h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 600; letter-spacing: -0.01em; }
+      h1 { font-size: clamp(2.5rem, 5vw, 4rem); margin: 0 0 1rem; line-height: 1.05; }
+      h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); margin: 0 0 1.25rem; }
+      h3 { font-size: 1.3rem; margin: 0 0 0.5rem; }
+      p { color: var(--muted); margin: 0 0 1rem; }
+      a { color: var(--accent); }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        background: rgba(246, 243, 238, 0.92);
+        backdrop-filter: saturate(180%) blur(8px);
+        border-bottom: 1px solid var(--line);
+        z-index: 10;
+      }
+      .nav-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .nav ul {
+        display: flex;
+        gap: 1.75rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 0.92rem;
+      }
+      .nav a { color: var(--ink); text-decoration: none; }
+      .nav a:hover { color: var(--accent); }
+
+      .hero {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 6rem 1.5rem 4rem;
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+      }
+      .hero .tag {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.78rem;
+        color: var(--accent);
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+      .hero .img {
+        aspect-ratio: 4 / 5;
+        background:
+          linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.15) 100%),
+          url('https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=900&q=80') center/cover;
+        border-radius: 4px;
+      }
+      .cta {
+        display: inline-block;
+        background: var(--accent);
+        color: #f6f3ee;
+        padding: 0.85rem 1.5rem;
+        text-decoration: none;
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+        margin-top: 0.5rem;
+      }
+      .cta:hover { background: #2f3a2f; }
+
+      section {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 4rem 1.5rem;
+        border-top: 1px solid var(--line);
+      }
+      .services {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+      .card {
+        background: var(--card);
+        padding: 1.75rem;
+        border-radius: 4px;
+        border: 1px solid var(--line);
+      }
+      .card p { margin-bottom: 0; font-size: 0.95rem; }
+
+      .info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+      }
+      .info dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.5rem 2rem;
+      }
+      .info dt { color: var(--accent); font-weight: 500; }
+      .info dd { margin: 0; color: var(--muted); }
+
+      footer {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        border-top: 1px solid var(--line);
+      }
+
+      @media (max-width: 720px) {
+        .hero, .services, .info { grid-template-columns: 1fr; gap: 2rem; }
+        .nav ul { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav-inner">
+        <div class="brand">Klinike</div>
+        <ul>
+          <li><a href="#behandlingar">Behandlingar</a></li>
+          <li><a href="#om-oss">Om oss</a></li>
+          <li><a href="#kontakt">Kontakt</a></li>
+          <li><a href="#" style="background: var(--accent); color: #f6f3ee; padding: 0.4rem 0.9rem;">Boka tid</a></li>
+        </ul>
+      </div>
+    </header>
+
+    <section class="hero" style="border-top: none;">
+      <div>
+        <div class="tag">Hudvård sedan 2009</div>
+        <h1>Hud som åldras vackert — på dina villkor.</h1>
+        <p>
+          Vi är en liten klinik i centrala Stockholm med fokus på medicinsk hudvård,
+          fillers och injektionsbehandlingar. Inga snabba trender, bara behandlingar
+          som faktiskt fungerar — utförda av legitimerade specialister.
+        </p>
+        <a class="cta" href="#kontakt">Boka konsultation</a>
+      </div>
+      <div class="img" aria-hidden="true"></div>
+    </section>
+
+    <section id="behandlingar">
+      <h2>Behandlingar</h2>
+      <p style="max-width: 580px;">
+        Ett urval av våra populäraste behandlingar. Under konsultationen går vi igenom
+        vad som passar din hud och dina mål.
+      </p>
+      <div class="services">
+        <article class="card">
+          <h3>Fillers</h3>
+          <p>Volym, kontur och balans. Hyaluronsyra-baserade fillers från beprövade leverantörer.</p>
+        </article>
+        <article class="card">
+          <h3>Botox</h3>
+          <p>För linjer kring ögon och panna. Diskret resultat som följer ditt naturliga uttryck.</p>
+        </article>
+        <article class="card">
+          <h3>Profhilo</h3>
+          <p>Bioremodellering för spänst och lyster — utan att förändra ansiktets form.</p>
+        </article>
+        <article class="card">
+          <h3>Microneedling</h3>
+          <p>Stimulerar kollagen och jämnar ut hudens textur. Bra mot ärr och pigmentering.</p>
+        </article>
+        <article class="card">
+          <h3>IPL</h3>
+          <p>Ljusbehandling mot pigmentfläckar och ytliga kärl. Märkbart resultat efter en serie.</p>
+        </article>
+        <article class="card">
+          <h3>Konsultation</h3>
+          <p>Vi tittar på din hud och du får en personlig plan. Kan göras på plats eller per telefon.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="om-oss">
+      <div class="info">
+        <div>
+          <h2>Om Klinike</h2>
+          <p>
+            Vi har funnits i Stockholm sedan 2009. Teamet består av legitimerade
+            hudterapeuter och en injektionsspecialist med över femton års erfarenhet.
+          </p>
+          <p>
+            Vår filosofi är enkel: ärlig rådgivning, dokumenterade behandlingar och
+            inga lösa löften. Om en behandling inte passar dig säger vi det.
+          </p>
+        </div>
+        <div id="kontakt">
+          <h2>Hitta hit</h2>
+          <dl>
+            <dt>Adress</dt><dd>Kungsgatan 12, Stockholm</dd>
+            <dt>Öppettider</dt><dd>Mån 9–16 · Tis–tor 8–18 · Fre 8–16</dd>
+            <dt>Telefon</dt><dd>08-410 22 800</dd>
+            <dt>E-post</dt><dd>kontakt@klinike.se</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      © Klinike AB · Org.nr 556xxx-xxxx · Demo-sida för Nordic Support widget
+    </footer>
+
+    <!-- Production embed snippet -->
+    <script
+      src="/widget.js"
+      data-assistant="6adf0d3c-bf85-425d-aa67-e4d6418ee87e"
+      async
+      defer
+    ></script>
+  </body>
+</html>

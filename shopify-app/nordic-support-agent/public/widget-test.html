@@ -59,25 +59,25 @@
   </head>
   <body>
     <div class="card">
-      <h1>Nordic Support — widget test</h1>
+      <h1>Nordic Support — widgettest</h1>
       <p class="hint">
-        Paste a valid widget token from <code>/app/widget</code> and click "Load widget". A chat
-        bubble should appear bottom-right.
+        Klistra in en giltig widget-token från <code>/app/widget</code> och klicka på
+        "Ladda widget". En chattbubbla ska dyka upp nere till höger.
       </p>
-      <label class="hint" for="token">Widget token</label>
+      <label class="hint" for="token">Widget-token</label>
       <input
         id="token"
         type="text"
         placeholder="eyJzaG9wIjoi..."
         autocomplete="off"
       />
-      <button id="load">Load widget</button>
+      <button id="load">Ladda widget</button>
       <p class="hint" id="status"></p>
     </div>
     <script>
       function loadWidget(token) {
         if (!token) {
-          document.getElementById('status').textContent = 'Token required.';
+          document.getElementById('status').textContent = 'Token krävs.';
           return;
         }
         window.NORDIC_SUPPORT = {
@@ -92,7 +92,7 @@
         s.async = true;
         document.body.appendChild(s);
         document.getElementById('status').textContent =
-          'Widget loaded. Look bottom-right.';
+          'Widget laddad. Titta nere till höger.';
       }
       document.getElementById('load').addEventListener('click', function () {
         loadWidget(document.getElementById('token').value.trim());
