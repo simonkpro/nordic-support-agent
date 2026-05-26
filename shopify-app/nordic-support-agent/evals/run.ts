@@ -26,9 +26,18 @@ const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? 'anthropic/claude-sonnet-4-6
 
 interface Case {
   id: string;
-  input: string;
+  /** Single-turn shorthand. Either `input` or `turns` must be set. */
+  input?: string;
+  /** Multi-turn driver: customer messages in order. The judge only
+   * scores the FINAL assistant reply, but tool-call assertions cover
+   * tools fired across ALL turns. */
+  turns?: string[];
   criteria: string;
   antiCriteria?: string;
+  /** Tool names that MUST have fired at least once across the case. */
+  expectTools?: string[];
+  /** Tool names that MUST NOT have fired at any point. */
+  denyTools?: string[];
 }
 
 interface RunResult {
@@ -60,23 +69,65 @@ async function mintToken(): Promise<string> {
 async function callAgent(
   token: string,
   message: string,
-): Promise<{ reply: string; toolCalls: string[] }> {
+  sessionId?: string,
+): Promise<{ reply: string; toolCalls: string[]; sessionId: string }> {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(sessionId ? { message, sessionId } : { message }),
   });
   if (!res.ok) {
     throw new Error(`/api/chat ${res.status}: ${await res.text()}`);
   }
-  const data = (await res.json()) as { reply: string; toolCalls?: string[] };
-  return { reply: data.reply, toolCalls: data.toolCalls ?? [] };
+  const data = (await res.json()) as {
+    reply: string;
+    toolCalls?: string[];
+    sessionId: string;
+  };
+  return {
+    reply: data.reply,
+    toolCalls: data.toolCalls ?? [],
+    sessionId: data.sessionId,
+  };
+}
+
+async function runCase(
+  token: string,
+  c: Case,
+): Promise<{ reply: string; toolCalls: string[] }> {
+  const turns = c.turns ?? (c.input != null ? [c.input] : []);
+  if (turns.length === 0) throw new Error(`case ${c.id} has neither input nor turns`);
+  let sessionId: string | undefined;
+  let lastReply = '';
+  const allTools: string[] = [];
+  for (const userMsg of turns) {
+    const { reply, toolCalls, sessionId: sid } = await callAgent(token, userMsg, sessionId);
+    sessionId = sid;
+    lastReply = reply;
+    allTools.push(...toolCalls);
+  }
+  return { reply: lastReply, toolCalls: allTools };
 }
 
 const JudgeSchema = z.object({
   pass: z.boolean(),
   reason: z.string().describe('One or two sentences explaining the verdict.'),
 });
+
+function checkTools(c: Case, fired: string[]): { pass: boolean; reason: string } {
+  const set = new Set(fired);
+  for (const expected of c.expectTools ?? []) {
+    if (!set.has(expected)) {
+      return { pass: false, reason: `expected tool "${expected}" to fire — got [${fired.join(', ')}]` };
+    }
+  }
+  for (const denied of c.denyTools ?? []) {
+    if (set.has(denied)) {
+      return { pass: false, reason: `tool "${denied}" should NOT have fired` };
+    }
+  }
+  return { pass: true, reason: 'tools ok' };
+}
 
 async function judge(c: Case, reply: string): Promise<{ pass: boolean; reason: string }> {
   const result = await generateObject({
@@ -118,7 +169,13 @@ async function main() {
   for (const c of cases) {
     process.stdout.write(`  [${c.id}] `);
     try {
-      const { reply, toolCalls } = await callAgent(token, c.input);
+      const { reply, toolCalls } = await runCase(token, c);
+      const toolCheck = checkTools(c, toolCalls);
+      if (!toolCheck.pass) {
+        results.push({ case: c, reply, toolCalls, pass: false, reason: toolCheck.reason });
+        process.stdout.write(`✗  ${toolCheck.reason}\n`);
+        continue;
+      }
       const verdict = await judge(c, reply);
       results.push({ case: c, reply, toolCalls, ...verdict });
       process.stdout.write(verdict.pass ? '✓\n' : `✗  ${verdict.reason}\n`);
