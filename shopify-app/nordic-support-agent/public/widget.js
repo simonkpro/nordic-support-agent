@@ -330,13 +330,13 @@
   .ns-root input, .ns-root textarea { font: inherit; color: inherit; background: transparent; border: 0; outline: none; padding: 0; -webkit-appearance: none; appearance: none; }
 
   /* ---- Launcher ---- */
-  .ns-launcher {
+  .ns-root .ns-launcher {
     position: absolute;
     right: 24px;
     bottom: 24px;
     width: var(--ns-launcher-size);
     height: var(--ns-launcher-size);
-    background: var(--ns-brand-color);
+    background: var(--ns-launcher-bg, var(--ns-brand-color));
     color: var(--ns-launcher-icon-color);
     box-shadow: var(--_shadow);
     pointer-events: auto;
@@ -683,6 +683,7 @@
     var BRAND_COLOR = brandFromInline.color || w.primaryColor || '#1a1a1a';
     var BRAND_ACCENT = brandFromInline.accentColor || w.accentColor || '#e85d4a';
     var LAUNCHER_ICON_COLOR = w.launcherIconColor || '#ffffff';
+    var LAUNCHER_BG = (w.launcherBgColor && String(w.launcherBgColor).trim()) || '';
     var SEND_ICON_COLOR = w.sendIconColor || '#ffffff';
     var PANEL_W = typeof w.width === 'number' ? w.width : 380;
     var PANEL_H = typeof w.height === 'number' ? w.height : 600;
@@ -818,6 +819,7 @@
     root.style.setProperty('--ns-brand-color', BRAND_COLOR);
     root.style.setProperty('--ns-brand-accent', BRAND_ACCENT);
     root.style.setProperty('--ns-launcher-icon-color', LAUNCHER_ICON_COLOR);
+    if (LAUNCHER_BG) root.style.setProperty('--ns-launcher-bg', LAUNCHER_BG);
     root.style.setProperty('--ns-send-icon-color', SEND_ICON_COLOR);
     root.style.setProperty('--ns-panel-width', PANEL_W + 'px');
     root.style.setProperty('--ns-panel-height', PANEL_H + 'px');
@@ -1198,6 +1200,7 @@
         primaryColor: '--ns-brand-color',
         accentColor: '--ns-brand-accent',
         launcherIconColor: '--ns-launcher-icon-color',
+        launcherBgColor: '--ns-launcher-bg',
         sendIconColor: '--ns-send-icon-color',
         fontFamily: '--ns-font-family',
       };

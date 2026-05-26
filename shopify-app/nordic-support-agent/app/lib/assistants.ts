@@ -184,6 +184,15 @@ export const AssistantConfigSchema = z.object({
       .string()
       .regex(/^#[0-9a-fA-F]{3,8}$/)
       .default('#ffffff'),
+    /**
+     * Launcher background. Empty string = inherit primaryColor. Useful
+     * when the launcher needs to stand off the brand color (e.g. light
+     * launcher on a dark site, or vice versa).
+     */
+    launcherBgColor: z
+      .string()
+      .regex(/^(#[0-9a-fA-F]{3,8})?$/)
+      .default(''),
     sendIcon: z.enum(['arrow_up', 'arrow_right', 'send_plane']).default('arrow_up'),
     sendShape: z.enum(['square', 'rounded', 'circle']).default('rounded'),
     sendFill: z.enum(['solid', 'outline', 'ghost']).default('solid'),
