@@ -129,24 +129,38 @@ function checkTools(c: Case, fired: string[]): { pass: boolean; reason: string }
   return { pass: true, reason: 'tools ok' };
 }
 
-async function judge(c: Case, reply: string): Promise<{ pass: boolean; reason: string }> {
+async function judge(
+  c: Case,
+  reply: string,
+  toolCalls: string[],
+): Promise<{ pass: boolean; reason: string }> {
+  const lastUserMessage = c.turns?.[c.turns.length - 1] ?? c.input ?? '';
+  const conversation = c.turns
+    ? c.turns.map((t, i) => `[turn ${i + 1}] ${t}`).join('\n')
+    : (c.input ?? '');
   const result = await generateObject({
     model: getModel(JUDGE_MODEL),
     schema: JudgeSchema,
     temperature: 0,
     prompt: `You are evaluating a customer support agent's reply against a rubric.
 
-# Customer message
-${c.input}
+# Customer conversation (judge the FINAL agent reply against the FULL flow)
+${conversation}
+
+# Final customer message
+${lastUserMessage}
 
 # Agent reply
 ${reply}
+
+# Tools the agent invoked during this case
+${toolCalls.length === 0 ? '(no tools fired)' : toolCalls.join(', ')}
 
 # Pass criteria (the reply MUST meet this)
 ${c.criteria}
 
 ${c.antiCriteria ? `# Fail criteria (the reply MUST NOT do this)\n${c.antiCriteria}\n` : ''}
-Return pass: true only if the reply meets the pass criteria AND avoids the fail criteria. Be strict but fair — minor stylistic differences are fine, factual fabrication is not.`,
+Return pass: true only if the reply meets the pass criteria AND avoids the fail criteria. The tool list is authoritative — if a tool fired, the agent DID use it; do not say it "didn't call the tool" when the tool list says it did. Be strict but fair: minor stylistic differences are fine, factual fabrication is not.`,
   });
   return result.object;
 }
@@ -176,7 +190,7 @@ async function main() {
         process.stdout.write(`✗  ${toolCheck.reason}\n`);
         continue;
       }
-      const verdict = await judge(c, reply);
+      const verdict = await judge(c, reply, toolCalls);
       results.push({ case: c, reply, toolCalls, ...verdict });
       process.stdout.write(verdict.pass ? '✓\n' : `✗  ${verdict.reason}\n`);
     } catch (err) {

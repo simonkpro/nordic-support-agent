@@ -543,12 +543,21 @@ export function buildTools(
       execute: async ({ reason, summary }) => {
         const turns = runtime.userTurnCount ?? 0;
         const trimmedSummary = summary.trim();
-        // Allow when EITHER: the conversation has run a few turns already
-        // OR the agent has gathered both a meaty summary AND a verified
-        // identity (so we know who/what the ticket is about).
+        // Reasons that are inherently serious bypass the early-turn gate:
+        // damaged_goods, chargebacks, and consumer_rights complaints are
+        // legal/financial. Making the customer answer questionnaires for
+        // these wastes the customer's time and frustrates them further.
+        // The human reads the full thread either way.
+        const seriousReason =
+          reason === 'damaged_goods' ||
+          reason === 'chargeback' ||
+          reason === 'consumer_rights';
+        // For everything else, allow when EITHER: the conversation has
+        // run a few turns OR the agent has gathered a meaty summary AND
+        // a verified identity.
         const enoughTurns = turns >= 3;
         const richContext = trimmedSummary.length >= 40 && Boolean(verifiedEmail);
-        if (!enoughTurns && !richContext) {
+        if (!seriousReason && !enoughTurns && !richContext) {
           return record('create_handoff_ticket', { reason, summary }, {
             ticket_created: false,
             reason_refused: 'too_early',
