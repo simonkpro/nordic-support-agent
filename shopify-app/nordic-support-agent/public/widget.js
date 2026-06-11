@@ -262,7 +262,14 @@
   function fetchRemoteConfig() {
     return new Promise(function (resolve, reject) {
       var timer = setTimeout(function () { reject(new Error('timeout')); }, 2500);
-      fetch(CONFIG_URL + '?token=' + encodeURIComponent(TOKEN), { method: 'GET', credentials: 'omit' })
+      // Token travels in the Authorization header, never the query string —
+      // query strings end up in access logs, CDN cache keys and Referer
+      // headers, which is no place for a bearer credential.
+      fetch(CONFIG_URL, {
+        method: 'GET',
+        credentials: 'omit',
+        headers: { Authorization: 'Bearer ' + TOKEN },
+      })
         .then(function (res) {
           clearTimeout(timer);
           if (!res.ok) return reject(new Error('http_' + res.status));
@@ -771,7 +778,7 @@
               '</button>' +
             '</div>' +
           '</header>' +
-          '<div class="ns-body" id="body">' +
+          '<div class="ns-body" id="body" aria-live="polite">' +
             '<div class="ns-day">' + escapeHtml(t('todayLabel')) + '</div>' +
           '</div>' +
           '<div class="ns-composer">' +
@@ -1021,69 +1028,105 @@
       var typingTimer = setTimeout(showTyping, 300);
       var assistantBubble = null;
       var streamedText = '';
+      var streamErrored = false;
 
-      var body = { message: text };
-      if (sessionId) body.sessionId = sessionId;
-      else body.context = { language: LANGUAGE, country: COUNTRY };
+      attempt(false);
 
-      fetch(STREAM_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + TOKEN,
-          Accept: 'text/event-stream',
-        },
-        body: JSON.stringify(body),
-      })
-        .then(function (res) {
-          if (!res.ok) {
-            return res.json()
-              .then(function (data) { throw { status: res.status, data: data }; })
-              .catch(function (e) {
-                if (e && typeof e === 'object' && 'status' in e) throw e;
-                throw { status: res.status, data: null };
-              });
-          }
-          var sid = res.headers.get('X-Conversation-Id');
-          if (sid) {
-            sessionId = sid;
-          }
-          if (!res.body) throw new Error('no_stream_body');
-          return consumeStream(res.body);
+      function attempt(isRetry) {
+        var body = { message: text };
+        if (sessionId) body.sessionId = sessionId;
+        else body.context = { language: LANGUAGE, country: COUNTRY };
+
+        fetch(STREAM_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + TOKEN,
+            Accept: 'text/event-stream',
+          },
+          body: JSON.stringify(body),
         })
-        .then(function () {
-          clearTimeout(typingTimer);
-          removeTyping();
-          sending = false;
-          updateSendState();
-        })
-        .catch(function (err) {
-          clearTimeout(typingTimer);
-          removeTyping();
-          if (!assistantBubble) {
-            // No token streamed — drop the optimistic user row so retry is clean.
-            if (userMsg.row && userMsg.row.parentNode) userMsg.row.remove();
-            if (userMsg.meta && userMsg.meta.parentNode) userMsg.meta.remove();
-          }
-          sending = false;
-          updateSendState();
-          if (err && typeof err === 'object' && 'status' in err) {
-            var status = err.status;
-            var data = err.data;
-            if (status === 429) {
-              var retry = (data && data.retryAfterSeconds) || 0;
-              showModal(t('errRateLimit', { n: retry }));
-            } else if (status === 401) {
-              showModal(t('errUnconfigured'));
-            } else if (status === 400 && data && data.error) {
-              showModal(humanizeError(data.error, data.detail));
-            } else {
+          .then(function (res) {
+            if (!res.ok) {
+              return res.json()
+                .then(function (data) { throw { status: res.status, data: data }; })
+                .catch(function (e) {
+                  if (e && typeof e === 'object' && 'status' in e) throw e;
+                  throw { status: res.status, data: null };
+                });
+            }
+            var sid = res.headers.get('X-Conversation-Id');
+            if (sid) {
+              sessionId = sid;
+            }
+            if (!res.body) throw new Error('no_stream_body');
+            return consumeStream(res.body);
+          })
+          .then(function () {
+            clearTimeout(typingTimer);
+            removeTyping();
+            sending = false;
+            updateSendState();
+            // Stream completed but produced no visible reply — either the
+            // server emitted an error event mid-run or the run ended with
+            // no text. Surface it; a silent non-answer reads as broken.
+            if (!assistantBubble) {
+              dropOptimisticRow();
+              showModal(t('errGeneric'));
+            } else if (streamErrored) {
               showModal(t('errGeneric'));
             }
+          })
+          .catch(function (err) {
+            // One-liner installs can mint a fresh public token, so an
+            // expired token (24h TTL; tab left open overnight) heals
+            // itself: re-mint once and replay the same message. The
+            // explicit-token path can't — that token came from the
+            // merchant, so a 401 there really is a config problem.
+            if (
+              !isRetry &&
+              err && typeof err === 'object' && err.status === 401 &&
+              ASSISTANT_ID && SCRIPT_ORIGIN && !inlineConfig.token
+            ) {
+              mintPublicToken(SCRIPT_ORIGIN, ASSISTANT_ID, null).then(
+                function (cfg) { TOKEN = cfg.token; attempt(true); },
+                function () { fail(err); },
+              );
+              return;
+            }
+            fail(err);
+          });
+      }
+
+      function dropOptimisticRow() {
+        // Drop the optimistic user row so retry is clean.
+        if (userMsg.row && userMsg.row.parentNode) userMsg.row.remove();
+        if (userMsg.meta && userMsg.meta.parentNode) userMsg.meta.remove();
+      }
+
+      function fail(err) {
+        clearTimeout(typingTimer);
+        removeTyping();
+        if (!assistantBubble) dropOptimisticRow();
+        sending = false;
+        updateSendState();
+        if (err && typeof err === 'object' && 'status' in err) {
+          var status = err.status;
+          var data = err.data;
+          if (status === 429) {
+            var retry = (data && data.retryAfterSeconds) || 0;
+            showModal(t('errRateLimit', { n: retry }));
+          } else if (status === 401) {
+            showModal(t('errUnconfigured'));
+          } else if (status === 400 && data && data.error) {
+            showModal(humanizeError(data.error, data.detail));
           } else {
-            showModal(t('errNetwork'));
+            showModal(t('errGeneric'));
           }
-        });
+        } else {
+          showModal(t('errNetwork'));
+        }
+      }
 
       function consumeStream(body) {
         var reader = body.getReader();
@@ -1119,10 +1162,11 @@
           if (line.indexOf('data: ') === 0) dataStr += line.slice(6);
           else if (line.indexOf('data:') === 0) dataStr += line.slice(5);
         }
-        if (!dataStr) return;
+        if (!dataStr || dataStr === '[DONE]') return;
         var parsed;
         try { parsed = JSON.parse(dataStr); } catch (_) { return; }
-        if (parsed && parsed.type === 'text-delta' && typeof parsed.delta === 'string') {
+        if (!parsed) return;
+        if (parsed.type === 'text-delta' && typeof parsed.delta === 'string') {
           clearTimeout(typingTimer);
           removeTyping();
           if (!assistantBubble) {
@@ -1136,6 +1180,12 @@
               bodyEl.scrollTo({ top: bodyEl.scrollHeight, behavior: 'smooth' });
             });
           }
+        } else if (parsed.type === 'error') {
+          // Server-side failure mid-stream (the AI SDK emits an `error`
+          // chunk, then the stream ends "successfully"). Flag it so the
+          // completion handler shows an error instead of going silent.
+          streamErrored = true;
+          console.warn('[nordic-support] stream error:', parsed.errorText || 'unknown');
         }
       }
     }
@@ -1277,6 +1327,14 @@
   }
 
   // Tiny markdown renderer for assistant bubbles. Intentionally narrow:
+  //
+  // SECURITY INVARIANT: every character of model output must pass through
+  // escapeHtml() before reaching innerHTML — the only raw HTML this
+  // renderer may emit is the fixed tag set below (<p>, <ul>, <ol>, <li>,
+  // <br>, <a href> with a scheme-checked URL). The model is untrusted
+  // input: a prompt-injected response could contain <img onerror=…> etc.
+  // If you touch inline()/renderMarkdown(), keep that property.
+  //
   //   - paragraphs (separated by a blank line)
   //   - bulleted lists (lines starting with "· ", "– ", "- ", or "* ")
   //   - numbered lists (lines starting with "1. ", "2. ", ...)

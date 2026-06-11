@@ -29,8 +29,8 @@ import { getCommerceAdapters } from '../lib/commerce.ts';
 
 /**
  * Streaming chat endpoint. Emits the AI SDK UI message stream protocol so
- * clients (assistant-ui in the embedded admin; eventually the storefront
- * widget) can render the agent's response token-by-token.
+ * clients (assistant-ui in the embedded admin; the storefront widget's
+ * hand-rolled SSE parser) can render the agent's response token-by-token.
  *
  *   POST /api/chat/stream
  *   Headers: Authorization: Bearer <widget token>

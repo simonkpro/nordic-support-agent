@@ -1,8 +1,20 @@
 {
+  "regions": ["arn1"],
   "crons": [
     {
       "path": "/api/cron/purge-conversations",
       "schedule": "0 3 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/widget.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, stale-while-revalidate=86400"
+        }
+      ]
     }
   ]
 }
