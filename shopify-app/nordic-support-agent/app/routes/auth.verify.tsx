@@ -1,16 +1,12 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
-import {
-  buildSessionCookie,
-  completeSignIn,
-  isOnboardingComplete,
-} from '../lib/workspace-auth.ts';
+import { buildSessionCookie, completeSignIn } from '../lib/workspace-auth.ts';
 
 /**
  * Magic-link consumer. The signin email points here with the email and
- * the one-time code in the query string. On success we burn the code,
- * lazily upsert the workspace, and drop a session cookie before
- * redirecting to the dashboard.
+ * the one-time code in the query string. On success we burn the code
+ * and drop a session cookie before redirecting wherever completeSignIn
+ * decided (dashboard, onboarding, workspace picker, or /admin).
  */
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -24,14 +20,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       invalid: 'This link is invalid.',
       expired: 'This link has expired. Request a new one.',
       too_many_attempts: 'Too many attempts. Request a new link.',
+      // Deliberately the same copy as 'invalid' — don't reveal that the
+      // email simply has no access.
+      no_access: 'This link is invalid.',
     };
     return htmlPage(reasons[result.reason] ?? 'Unable to sign you in.', 410);
   }
 
-  // First-time sign-ins land in the onboarding flow; returners go
-  // straight to the dashboard. Either path drops the cookie first.
-  const done = await isOnboardingComplete(result.session.workspaceId);
-  return redirect(done ? '/insights' : '/onboarding/welcome', {
+  return redirect(result.next, {
     headers: { 'Set-Cookie': buildSessionCookie(result.cookieValue, result.maxAgeSeconds) },
   });
 };

@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { Link, redirect, useLoaderData, useSearchParams } from 'react-router';
-import { getWorkspaceFromRequest } from '../lib/workspace-auth';
+import { Link, useLoaderData, useSearchParams } from 'react-router';
+import { requireWorkspace, type MembershipSummary } from '../lib/workspace-auth';
 import {
   AdminShell,
   Card,
@@ -19,6 +19,8 @@ import {
 interface LoaderData {
   workspaceName: string;
   ownerEmail: string;
+  memberships: MembershipSummary[];
+  impersonating: boolean;
   filters: {
     outcomes: Array<'resolved' | 'escalated' | 'abandoned'>;
     hasEmail: boolean;
@@ -32,9 +34,8 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const ctx = await requireWorkspace(request);
+  const shop = ctx.workspace.id;
 
   const url = new URL(request.url);
   const outcomes = url.searchParams
@@ -61,8 +62,10 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const detail = selectedId ? await getConversationDetail(shop, selectedId) : null;
 
   return {
-    workspaceName: session?.workspaceName ?? 'Preview shop',
-    ownerEmail: session?.ownerEmail ?? '',
+    workspaceName: ctx.workspace.name,
+    ownerEmail: ctx.user.email,
+    memberships: ctx.memberships,
+    impersonating: ctx.impersonating,
     filters: { outcomes, hasEmail, hasHandoff, language, search },
     list,
     detail,
@@ -106,6 +109,8 @@ export default function ConversationsView() {
       active="conversations"
       workspaceName={data.workspaceName}
       ownerEmail={data.ownerEmail}
+      memberships={data.memberships}
+      impersonating={data.impersonating}
     >
       <PageHeader
         title="Konversationer"

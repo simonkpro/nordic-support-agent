@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { Form, redirect, useFetcher, useLoaderData, useRevalidator } from 'react-router';
-import { getWorkspaceFromRequest } from '../lib/workspace-auth';
+import { requireWorkspace } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant, updateAssistant } from '../lib/assistants';
 import {
   deleteDocument,
@@ -35,9 +35,8 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const assistant = await loadOrCreateDefaultAssistant(shop);
   const docs = await listDocuments(shop);
   return {
@@ -55,9 +54,8 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const form = await request.formData();
   const intent = form.get('intent');
   const assistant = await loadOrCreateDefaultAssistant(shop);

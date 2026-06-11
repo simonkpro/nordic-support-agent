@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { redirect, useLoaderData, useSearchParams, Link } from 'react-router';
-import { getWorkspaceFromRequest, isOnboardingComplete } from '../lib/workspace-auth';
+import { useLoaderData, useSearchParams, Link } from 'react-router';
+import { requireWorkspace, type MembershipSummary } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant } from '../lib/assistants';
 import {
   AdminShell,
@@ -50,6 +50,8 @@ const PRESET_RANGES: Array<{ key: string; label: string; days: number }> = [
 interface LoaderData {
   workspaceName: string;
   ownerEmail: string;
+  memberships: MembershipSummary[];
+  impersonating: boolean;
   range: { key: string };
   kpis: OverviewKpis;
   heatmap: ActivityHeatmap;
@@ -72,9 +74,8 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const ctx = await requireWorkspace(request);
+  const shop = ctx.workspace.id;
 
   const url = new URL(request.url);
   const rangeKey = url.searchParams.get('range') ?? '7d';
@@ -83,27 +84,22 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const from = new Date(to.getTime() - preset.days * 24 * 60 * 60 * 1000);
 
-  const [
-    kpis,
-    heatmap,
-    responseTime,
-    recentEscalations,
-    knowledgeGaps,
-    defaultAssistant,
-    onboardingDone,
-  ] = await Promise.all([
-    getOverview({ shop, from, to }),
-    getActivityHeatmap(shop, from, to),
-    getResponseTimeStats(shop, from, to),
-    getRecentEscalations(shop, 5),
-    getKnowledgeGaps({ shop, from, to }),
-    loadOrCreateDefaultAssistant(shop),
-    session ? isOnboardingComplete(session.workspaceId) : Promise.resolve(true),
-  ]);
+  const [kpis, heatmap, responseTime, recentEscalations, knowledgeGaps, defaultAssistant] =
+    await Promise.all([
+      getOverview({ shop, from, to }),
+      getActivityHeatmap(shop, from, to),
+      getResponseTimeStats(shop, from, to),
+      getRecentEscalations(shop, 5),
+      getKnowledgeGaps({ shop, from, to }),
+      loadOrCreateDefaultAssistant(shop),
+    ]);
+  const onboardingDone = ctx.workspace.onboardingCompletedAt != null;
 
   return {
-    workspaceName: session?.workspaceName ?? 'Preview shop',
-    ownerEmail: session?.ownerEmail ?? '',
+    workspaceName: ctx.workspace.name,
+    ownerEmail: ctx.user.email,
+    memberships: ctx.memberships,
+    impersonating: ctx.impersonating,
     range: { key: preset.key },
     kpis,
     heatmap,
@@ -131,6 +127,8 @@ export default function InsightsIndex() {
       active="insights"
       workspaceName={data.workspaceName}
       ownerEmail={data.ownerEmail}
+      memberships={data.memberships}
+      impersonating={data.impersonating}
     >
       {!data.onboardingDone && <ContinueSetupBanner />}
       <PageHeader

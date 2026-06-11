@@ -22,8 +22,7 @@ import {
   type SupportedMime,
 } from '../lib/knowledge.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
-import { getWorkspaceFromRequest } from '../lib/workspace-auth.ts';
-import { redirect } from 'react-router';
+import { requireWorkspace } from '../lib/workspace-auth.ts';
 import { AssistantModal } from '../components/assistant-ui/assistant-modal';
 import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
 
@@ -32,24 +31,11 @@ import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
  * its own config + chat. The active assistant is tracked in the URL
  * (?a=<id>) so the form remounts with the right config on switch.
  *
- * Workspace resolution: a workspace session cookie identifies an
- * authenticated owner — their workspace.id becomes the "shop" value
- * used by every shop-scoped query. In non-production environments
- * without a cookie we fall back to the shared PREVIEW_SHOP so the
- * dev demo path keeps working unauthenticated.
+ * Workspace resolution: the session cookie identifies an authenticated
+ * user; requireWorkspace resolves their active workspace, whose id
+ * becomes the "shop" value used by every shop-scoped query. No session
+ * means a redirect to /signin — in every environment.
  */
-const PREVIEW_SHOP = 'preview-shop.myshopify.com';
-
-async function resolveShop(request: Request): Promise<string> {
-  const ws = await getWorkspaceFromRequest(request);
-  if (ws) return ws.workspaceId;
-  if (process.env.NODE_ENV === 'production') {
-    // No cookie in prod = no access. The loader/action throw redirect
-    // and bounce the user to /signin.
-    throw redirect('/signin');
-  }
-  return PREVIEW_SHOP;
-}
 const MAX_FEW_SHOT = 5;
 
 const ACCEPTED_MIME: Record<string, SupportedMime> = {
@@ -114,7 +100,8 @@ async function pickActive(
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   const url = new URL(request.url);
-  const shop = await resolveShop(request);
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const active = await pickActive(shop, url.searchParams.get('a'));
   const all = await listAssistants(shop);
   const convo = await createConversation(shop, {
@@ -173,7 +160,8 @@ interface ActionResponse {
 export const action = async ({ request }: ActionFunctionArgs): Promise<ActionResponse> => {
   const formData = await request.formData();
   const intent = formData.get('intent');
-  const shop = await resolveShop(request);
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
 
   // --- assistant lifecycle ---
   if (intent === 'create-assistant') {

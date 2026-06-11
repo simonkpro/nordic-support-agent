@@ -1,12 +1,12 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect, Link } from 'react-router';
-import { getWorkspaceFromRequest } from '../../lib/workspace-auth';
+import { getSessionFromRequest } from '../../lib/workspace-auth';
 
 /**
  * Public landing. Three branches:
  *  - Shopify install flow lands here with ?shop=… → redirect into /app
  *    (Shopify embedded path stays unchanged).
- *  - Already signed-in workspace owner → /preview/chat dashboard.
+ *  - Already signed-in user → their dashboard (or workspace picker / admin).
  *  - Everyone else → marketing page with sign-in CTA.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -14,8 +14,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (url.searchParams.get('shop')) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
-  const session = await getWorkspaceFromRequest(request);
-  if (session) throw redirect('/preview/chat');
+  const session = await getSessionFromRequest(request);
+  if (session) {
+    if (session.activeWorkspaceId) throw redirect('/preview/chat');
+    if (session.memberships.length > 0) throw redirect('/workspaces');
+    if (session.user.isPlatformAdmin) throw redirect('/admin');
+  }
   return null;
 };
 

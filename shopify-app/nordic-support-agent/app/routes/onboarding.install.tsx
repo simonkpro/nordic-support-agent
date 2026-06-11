@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { Form, redirect, useFetcher, useLoaderData } from 'react-router';
-import {
-  getWorkspaceFromRequest,
-  markOnboardingComplete,
-} from '../lib/workspace-auth';
+import { requireWorkspace, markOnboardingComplete } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant } from '../lib/assistants';
 import { signWidgetToken } from '../lib/widget-token';
 import { OnboardingShell } from '../components/onboarding-shell';
@@ -24,9 +21,8 @@ function buildOrigin(request: Request): string {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const a = await loadOrCreateDefaultAssistant(shop);
   return {
     assistantId: a.id,
@@ -36,11 +32,8 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  if (session) {
-    await markOnboardingComplete(session.workspaceId);
-  }
+  const { workspace } = await requireWorkspace(request);
+  await markOnboardingComplete(workspace.id);
   return redirect('/preview/chat');
 };
 

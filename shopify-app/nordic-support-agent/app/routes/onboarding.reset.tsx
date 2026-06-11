@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
-import { getWorkspaceFromRequest, resetOnboarding } from '../lib/workspace-auth';
+import { requireWorkspace, resetOnboarding } from '../lib/workspace-auth';
 
 /**
  * Clears Workspace.onboardingCompletedAt and routes the user back to
@@ -10,12 +10,8 @@ import { getWorkspaceFromRequest, resetOnboarding } from '../lib/workspace-auth'
  */
 
 const reset = async (request: Request) => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session) {
-    if (process.env.NODE_ENV === 'production') return redirect('/signin');
-  } else {
-    await resetOnboarding(session.workspaceId);
-  }
+  const { workspace } = await requireWorkspace(request);
+  await resetOnboarding(workspace.id);
   return redirect('/onboarding/welcome');
 };
 

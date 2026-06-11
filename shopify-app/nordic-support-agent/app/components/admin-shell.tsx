@@ -1,5 +1,6 @@
-import { Link } from 'react-router';
+import { Form, Link } from 'react-router';
 import type { ReactNode } from 'react';
+import type { MembershipSummary } from '../lib/workspace-auth.ts';
 
 /**
  * Shared admin shell — left rail with primary navigation, cream backdrop,
@@ -34,18 +35,24 @@ const NAV_ITEMS: Array<{ key: AdminSection; label: string; href: string }> = [
   { key: 'insights', label: 'Översikt', href: '/insights' },
   { key: 'conversations', label: 'Konversationer', href: '/insights/conversations' },
   { key: 'settings', label: 'Inställningar', href: '/preview/chat' },
-  { key: 'account', label: 'Konto', href: '/account' },
+  { key: 'account', label: 'Konto', href: '/settings' },
 ];
 
 export function AdminShell({
   active,
   workspaceName,
   ownerEmail,
+  memberships,
+  impersonating,
   children,
 }: {
   active: AdminSection;
   workspaceName?: string;
   ownerEmail?: string;
+  /** When the signed-in user belongs to several workspaces, render the switcher. */
+  memberships?: MembershipSummary[];
+  /** Platform admin viewing as this workspace — show the exit banner. */
+  impersonating?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -58,8 +65,34 @@ export function AdminShell({
         display: 'grid',
         gridTemplateColumns: '240px 1fr',
         WebkitFontSmoothing: 'antialiased',
+        paddingTop: impersonating ? 38 : 0,
       }}
     >
+      {impersonating && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            background: '#7c2d12',
+            color: '#fff',
+            fontSize: 13,
+            padding: '9px 16px',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 12,
+          }}
+        >
+          <span>
+            Viewing as <strong>{workspaceName}</strong> (platform admin)
+          </span>
+          <Link to="/admin/impersonation/stop" style={{ color: '#fed7aa', fontWeight: 600 }}>
+            Exit →
+          </Link>
+        </div>
+      )}
       <aside
         style={{
           borderRight: `1px solid ${PALETTE.line}`,
@@ -76,10 +109,38 @@ export function AdminShell({
           <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
             Nordic Support
           </div>
-          {workspaceName && (
-            <div style={{ fontSize: 12, color: PALETTE.muted, marginTop: 2 }}>
-              {workspaceName}
-            </div>
+          {memberships && memberships.length > 1 ? (
+            <Form method="post" action="/workspaces" style={{ marginTop: 6 }}>
+              <select
+                name="workspaceId"
+                defaultValue=""
+                onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                style={{
+                  width: '100%',
+                  fontSize: 12,
+                  color: PALETTE.muted,
+                  border: `1px solid ${PALETTE.line}`,
+                  borderRadius: 6,
+                  padding: '4px 6px',
+                  background: PALETTE.card,
+                }}
+              >
+                <option value="" disabled>
+                  {workspaceName ?? 'Byt arbetsyta'}
+                </option>
+                {memberships.map((m) => (
+                  <option key={m.workspaceId} value={m.workspaceId}>
+                    {m.workspaceName}
+                  </option>
+                ))}
+              </select>
+            </Form>
+          ) : (
+            workspaceName && (
+              <div style={{ fontSize: 12, color: PALETTE.muted, marginTop: 2 }}>
+                {workspaceName}
+              </div>
+            )
           )}
         </div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

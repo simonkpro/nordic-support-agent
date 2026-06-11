@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { Form, redirect, useFetcher, useLoaderData } from 'react-router';
-import { getWorkspaceFromRequest } from '../lib/workspace-auth';
+import { requireWorkspace } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant, updateAssistant } from '../lib/assistants';
 import { FieldLabel, OnboardingShell, SegmentedPicker } from '../components/onboarding-shell';
 import { Card, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
@@ -16,9 +16,8 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const a = await loadOrCreateDefaultAssistant(shop);
   return {
     primaryColor: a.config.widget.primaryColor,
@@ -31,9 +30,8 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const session = await getWorkspaceFromRequest(request);
-  if (!session && process.env.NODE_ENV === 'production') throw redirect('/signin');
-  const shop = session?.workspaceId ?? 'preview-shop.myshopify.com';
+  const { workspace } = await requireWorkspace(request);
+  const shop = workspace.id;
   const form = await request.formData();
   const a = await loadOrCreateDefaultAssistant(shop);
   await updateAssistant(a.id, {

@@ -253,15 +253,68 @@ model DsarRequest {
  * the app's perspective, both are opaque tenant strings. */
 model Workspace {
   id         String   @id @default(uuid())
-  ownerEmail String   @unique
+  /** DEPRECATED display-only. Access is governed by WorkspaceMembership;
+   * a cleanup migration drops this column once the new model is stable. */
+  ownerEmail String
   name       String
   /** Null = user hasn't finished onboarding; sign-in redirects them to
    * /onboarding/welcome. Stamped when they complete (or explicitly skip)
    * the install step. A "Re-run onboarding" link in the dashboard
    * clears this back to null. */
   onboardingCompletedAt DateTime?
+  /** Non-null = access suspended. Members can't sign in or load the
+   * dashboard; platform-admin impersonation still works for inspection. */
+  disabledAt DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  memberships WorkspaceMembership[]
+}
+
+/** A person who can sign in to the standalone dashboard. Created only by
+ * platform-admin provisioning (or lazily for platform admins themselves) —
+ * there is no self-signup path. Email is always normaliseEmail()'d. */
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships WorkspaceMembership[]
+  sessions    WorkspaceSession[]
+}
+
+/** Grants a User access to a Workspace. Role is 'owner' | 'member';
+ * owners can rename the workspace, members are read/write on tenant data
+ * but not workspace settings. */
+model WorkspaceMembership {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+/** Audit trail for platform-admin actions (provisioning, impersonation,
+ * disabling tenants). Append-only; never user-visible. */
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminUserId String
+  // 'impersonate_start' | 'impersonate_stop' | 'workspace_create' |
+  // 'workspace_rename' | 'workspace_disable' | 'workspace_enable' | 'member_add'
+  action      String
+  workspaceId String?
+  detail      String   @default("{}") // JSON
+  at          DateTime @default(now())
+
+  @@index([adminUserId, at])
+  @@index([workspaceId])
 }
 
 /** Short-TTL sign-in code emailed to the owner. One row per email at a
@@ -277,15 +330,26 @@ model WorkspaceSignInCode {
 }
 
 /** Session cookie row. Token is the cookie value; rows hold expiry +
- * workspace pointer. Rotating WIDGET_TOKEN_SECRET does not invalidate
- * these — separate trust domain. */
+ * user pointer. Rotating WIDGET_TOKEN_SECRET does not invalidate
+ * these — separate trust domain.
+ *
+ * activeWorkspaceId is the tenant this session is currently acting in
+ * (null until the user picks one when they belong to several). The
+ * impersonation fields let a platform admin "view as" a workspace from
+ * their own session; requireWorkspace re-checks admin status and the
+ * expiry on every request, so a stale row can never grant access. */
 model WorkspaceSession {
-  id          String   @id @default(uuid())
-  workspaceId String
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id                      String    @id @default(uuid())
+  userId                  String
+  activeWorkspaceId       String?
+  impersonatedWorkspaceId String?
+  impersonationExpiresAt  DateTime?
+  expiresAt               DateTime
+  createdAt               DateTime  @default(now())
 
-  @@index([workspaceId])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 

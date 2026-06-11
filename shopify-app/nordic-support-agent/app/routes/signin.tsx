@@ -1,21 +1,25 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { Form, useActionData, useNavigation, redirect } from 'react-router';
-import { startSignIn, getWorkspaceFromRequest } from '../lib/workspace-auth.ts';
+import { startSignIn, getSessionFromRequest } from '../lib/workspace-auth.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
 
 /**
- * Magic-link signin/signup. Same surface for both — first-time use
- * lazily creates the workspace on verify. No password.
+ * Magic-link sign-in. Invite-only: workspaces are provisioned by the
+ * platform admin, so unknown emails get the same "check your inbox"
+ * response but no link. No password.
  *
- * If a session cookie is already valid, we just redirect to the
- * dashboard so a tab-restore doesn't dump the form.
+ * If a session cookie is already valid, we redirect past the form so a
+ * tab-restore doesn't dump the user here.
  */
 
 const IP_RATE = { capacity: 10, refillPerMinute: 10 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const session = await getWorkspaceFromRequest(request);
-  if (session) throw redirect('/preview/chat');
+  const session = await getSessionFromRequest(request);
+  if (!session) return null;
+  if (session.activeWorkspaceId) throw redirect('/insights');
+  if (session.memberships.length > 0) throw redirect('/workspaces');
+  if (session.user.isPlatformAdmin) throw redirect('/admin');
   return null;
 };
 
@@ -63,13 +67,12 @@ export default function SignIn() {
       >
         <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>Sign in</h1>
         <p style={{ margin: '0 0 24px', color: '#374151', lineHeight: 1.5, fontSize: 14 }}>
-          Enter your email and we'll send you a sign-in link. New here?
-          The same flow creates your workspace.
+          Enter your email and we'll send you a sign-in link.
         </p>
         {data?.ok ? (
           <p style={{ color: '#065f46', fontSize: 14 }}>
-            Check your inbox. If we hold a workspace for that email or you're a
-            new user, you'll receive a link within a minute.
+            Check your inbox. If your email has access to a workspace, a
+            sign-in link is on its way.
           </p>
         ) : (
           <Form method="post">
