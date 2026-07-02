@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { useLoaderData } from 'react-router';
 import { verifyDemoLink } from '../lib/demo-link.ts';
@@ -14,9 +14,14 @@ import { verifyDemoLink } from '../lib/demo-link.ts';
  * Public and unauthenticated — the link is meant to be shared. The iframe
  * loads client-side (their browser fetches the site, not our server), so
  * there's no SSRF surface here; we only validate the scheme and assistant
- * id. Sites that forbid framing (X-Frame-Options / CSP frame-ancestors)
- * won't render — the admin generator checks for that and warns before the
- * link is sent.
+ * id.
+ *
+ * Not every site renders in the frame. The admin generator checks framing
+ * headers (X-Frame-Options / CSP frame-ancestors), but that can't catch
+ * JS-based framebusting or single-page apps that refuse to boot inside a
+ * sandboxed cross-origin iframe (they load to a blank body). So the page
+ * shows a "can't preview this site" fallback after a short wait instead of
+ * hanging on the loading text forever.
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -115,9 +120,25 @@ export default function Demo() {
     );
   }
 
+  return <DemoFrame site={site} />;
+}
+
+function DemoFrame({ site }: { site: string }) {
+  const hostname = new URL(site).hostname.replace(/^www\./, '');
+  // A site that renders paints an opaque iframe over this fallback within a
+  // second or two. One that can't (framebusting / SPA that won't boot in a
+  // sandbox) leaves the frame transparent, so this shows through — after a
+  // grace period we swap the "loading" text for an honest explanation.
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setStalled(true), 6500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const SANS = '"Schibsted Grotesk", -apple-system, system-ui, sans-serif';
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff' }}>
-      {/* Fallback shown until the iframe paints (and if the site blocks framing). */}
       <div
         style={{
           position: 'absolute',
@@ -125,13 +146,50 @@ export default function Demo() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#9a9a94',
-          fontFamily:
-            '"Schibsted Grotesk", -apple-system, system-ui, sans-serif',
-          fontSize: 14,
+          fontFamily: SANS,
+          padding: 24,
         }}
       >
-        Laddar {new URL(site).hostname} …
+        {!stalled ? (
+          <span style={{ color: '#9a9a94', fontSize: 14 }}>Laddar {hostname} …</span>
+        ) : (
+          <div style={{ maxWidth: 380, textAlign: 'center' }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: '#12140f',
+                marginBottom: 16,
+              }}
+            >
+              Vitrio
+            </div>
+            <p style={{ color: '#71716b', fontSize: 15, lineHeight: 1.55, margin: '0 0 18px' }}>
+              {hostname} går inte att visa i förhandsvisningen — sajten
+              blockerar att den bäddas in. Widgeten nere till höger är ändå
+              live, så du kan öppna den och testa.
+            </p>
+            <a
+              href={site}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                background: '#0e3d2a',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 500,
+                textDecoration: 'none',
+                padding: '10px 20px',
+                borderRadius: 999,
+              }}
+            >
+              Öppna {hostname} i ny flik →
+            </a>
+          </div>
+        )}
       </div>
       <iframe
         src={site}
