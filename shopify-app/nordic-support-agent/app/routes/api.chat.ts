@@ -18,6 +18,7 @@ import {
 import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { PrismaVerificationStore } from '../lib/verification-store.ts';
 import { getAssistant, loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
+import { isShopSuspended } from '../lib/workspace-status.ts';
 import { searchKnowledge } from '../lib/knowledge.ts';
 import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
@@ -169,7 +170,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     convo = await createConversation(shop, {
       language: requestedContext.language ?? 'sv',
       country: requestedContext.country ?? 'SE',
-      verifiedEmail: requestedContext.verifiedCustomerEmail ?? null,
+      // SECURITY: never trust a client-supplied "verified" email. Verified
+      // identity is only ever established server-side by the verify_code
+      // flow (markConversationVerified). Honoring context.verifiedCustomerEmail
+      // here would let any public caller claim to be a customer and pull
+      // that customer's order PII (verification-tier bypass).
+      verifiedEmail: null,
     });
   }
 
@@ -196,6 +202,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ? await getAssistant(targetAssistantId)
     : await loadOrCreateDefaultAssistant(shop);
   if (!assistant || assistant.shop !== shop) {
+    return new Response(JSON.stringify({ error: 'assistant_not_found' }), {
+      status: 404,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Suspended workspace: refuse chat even with an otherwise-valid token.
+  if (await isShopSuspended(shop)) {
     return new Response(JSON.stringify({ error: 'assistant_not_found' }), {
       status: 404,
       headers: { ...cors, 'Content-Type': 'application/json' },

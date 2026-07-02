@@ -163,6 +163,19 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
   const { workspace } = await requireWorkspace(request);
   const shop = workspace.id;
 
+  // SECURITY: assistant ids arrive in the request body and are public
+  // (they ship in every widget install snippet), so every id-based
+  // mutation below must confirm the target assistant belongs to THIS
+  // workspace before touching it. Without this, a signed-in tenant could
+  // rename/delete/unpublish/reconfigure another tenant's assistant.
+  // Returns the validated id, or null if it doesn't belong to this shop.
+  async function ownedAssistantId(raw: FormDataEntryValue | null): Promise<string | null> {
+    const id = String(raw ?? '');
+    if (!id) return null;
+    const a = await getAssistant(id);
+    return a && a.shop === shop ? id : null;
+  }
+
   // --- assistant lifecycle ---
   if (intent === 'create-assistant') {
     const name = String(formData.get('name') ?? '').trim() || 'Untitled assistant';
@@ -174,7 +187,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     }
   }
   if (intent === 'rename-assistant') {
-    const id = String(formData.get('id') ?? '');
+    const id = await ownedAssistantId(formData.get('id'));
     const name = String(formData.get('name') ?? '').trim();
     if (!id || !name) return { ok: false, intent: 'rename-assistant', error: 'missing fields' };
     try {
@@ -185,7 +198,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     }
   }
   if (intent === 'delete-assistant') {
-    const id = String(formData.get('id') ?? '');
+    const id = await ownedAssistantId(formData.get('id'));
     if (!id) return { ok: false, intent: 'delete-assistant', error: 'missing id' };
     try {
       const newDefault = await deleteAssistant(id);
@@ -199,7 +212,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     }
   }
   if (intent === 'set-default-assistant') {
-    const id = String(formData.get('id') ?? '');
+    const id = await ownedAssistantId(formData.get('id'));
     if (!id) return { ok: false, intent: 'set-default-assistant', error: 'missing id' };
     try {
       await setDefaultAssistant(id);
@@ -211,7 +224,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
 
   // --- security: publish toggle + token revocation ---
   if (intent === 'toggle-published') {
-    const id = String(formData.get('id') ?? '');
+    const id = await ownedAssistantId(formData.get('id'));
     const published = String(formData.get('published') ?? '') === 'true';
     if (!id) return { ok: false, intent: 'toggle-published', error: 'missing id' };
     try {
@@ -222,7 +235,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
     }
   }
   if (intent === 'revoke-tokens') {
-    const id = String(formData.get('id') ?? '');
+    const id = await ownedAssistantId(formData.get('id'));
     if (!id) return { ok: false, intent: 'revoke-tokens', error: 'missing id' };
     try {
       await bumpTokenEpoch(id);
@@ -270,7 +283,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
   }
 
   // --- save settings (default intent) ---
-  const id = String(formData.get('assistantId') ?? '');
+  const id = await ownedAssistantId(formData.get('assistantId'));
   if (!id) return { ok: false, intent: 'save-settings', error: 'missing assistantId' };
 
   let fewShotExamples: unknown = [];

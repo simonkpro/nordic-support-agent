@@ -20,6 +20,7 @@ import {
 import { verifyWidgetToken } from '../lib/widget-token.ts';
 import { PrismaVerificationStore } from '../lib/verification-store.ts';
 import { getAssistant, loadOrCreateDefaultAssistant } from '../lib/assistants.ts';
+import { isShopSuspended } from '../lib/workspace-status.ts';
 import { searchKnowledge } from '../lib/knowledge.ts';
 import { getHandoffSender } from '../lib/handoff-sender.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
@@ -172,7 +173,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     convo = await createConversation(shop, {
       language: requestedContext.language ?? 'sv',
       country: requestedContext.country ?? 'SE',
-      verifiedEmail: requestedContext.verifiedCustomerEmail ?? null,
+      // SECURITY: never trust a client-supplied "verified" email — verified
+      // identity is only established server-side by the verify_code flow.
+      // See api.chat.ts for the full rationale (verification-tier bypass).
+      verifiedEmail: null,
     });
   }
 
@@ -199,6 +203,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ? await getAssistant(targetAssistantId)
     : await loadOrCreateDefaultAssistant(shop);
   if (!assistant || assistant.shop !== shop) {
+    return jsonError(404, { error: 'assistant_not_found' }, cors);
+  }
+
+  // Suspended workspace: refuse chat even with an otherwise-valid token.
+  if (await isShopSuspended(shop)) {
     return jsonError(404, { error: 'assistant_not_found' }, cors);
   }
 

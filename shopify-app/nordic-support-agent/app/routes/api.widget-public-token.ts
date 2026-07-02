@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { getAssistant } from '../lib/assistants.ts';
+import { isShopSuspended } from '../lib/workspace-status.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
 import { isOriginAllowed } from '../lib/origin-allowlist.ts';
@@ -110,8 +111,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const assistant = await getAssistant(assistantId);
   // Unpublished assistants are not reachable by id. We return 404 (not
-  // 403) so a leaked id can't be distinguished from an unknown id.
-  if (!assistant || !assistant.published) {
+  // 403) so a leaked id can't be distinguished from an unknown id. A
+  // suspended workspace is treated the same — disabling a client in /admin
+  // must stop new tokens being minted, not just kill already-issued ones.
+  if (!assistant || !assistant.published || (await isShopSuspended(assistant.shop))) {
     return json(404, { error: 'assistant_not_found' }, cors);
   }
 
