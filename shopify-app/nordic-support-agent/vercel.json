@@ -16,5 +16,67 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/signin",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/signin",
+      "permanent": false
+    },
+    {
+      "source": "/admin/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/admin/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/insights/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/insights/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/onboarding/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/onboarding/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/workspaces/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/workspaces/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/settings/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/settings/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/preview/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/preview/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/auth/verify",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/auth/verify",
+      "permanent": false
+    },
+    {
+      "source": "/auth/signout",
+      "has": [{ "type": "host", "value": "^(www\\.)?vitrio\\.se$" }],
+      "destination": "https://dashboard.vitrio.se/auth/signout",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "^dashboard\\.vitrio\\.se$" }],
+      "destination": "/signin",
+      "permanent": false
+    }
   ]
 }
