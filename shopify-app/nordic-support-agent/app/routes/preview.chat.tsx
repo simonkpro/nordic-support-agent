@@ -22,7 +22,8 @@ import {
   type SupportedMime,
 } from '../lib/knowledge.ts';
 import { signWidgetToken } from '../lib/widget-token.ts';
-import { requireWorkspace } from '../lib/workspace-auth.ts';
+import { requireWorkspace, type MembershipSummary } from '../lib/workspace-auth.ts';
+import { AdminShell } from '../components/admin-shell';
 import { AssistantModal } from '../components/assistant-ui/assistant-modal';
 import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
 
@@ -78,6 +79,10 @@ interface LoaderData {
   };
   assistants: AssistantSummary[];
   documents: DocumentRow[];
+  workspaceName: string;
+  ownerEmail: string;
+  memberships: MembershipSummary[];
+  impersonating: boolean;
 }
 
 function buildOrigin(request: Request, url: URL): string {
@@ -100,7 +105,8 @@ async function pickActive(
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   const url = new URL(request.url);
-  const { workspace } = await requireWorkspace(request);
+  const ctx = await requireWorkspace(request);
+  const { workspace } = ctx;
   const shop = workspace.id;
   const active = await pickActive(shop, url.searchParams.get('a'));
   const all = await listAssistants(shop);
@@ -146,6 +152,10 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
       assistantId: d.assistantId,
       chunkCount: d._count.chunks,
     })),
+    workspaceName: ctx.workspace.name,
+    ownerEmail: ctx.user.email,
+    memberships: ctx.memberships,
+    impersonating: ctx.impersonating,
   };
 };
 
@@ -441,6 +451,7 @@ function PreviewBody({
   revalidator: ReturnType<typeof useRevalidator>;
 }) {
   const { widgetToken, conversationId, origin, active, assistants, documents } = data;
+  const { workspaceName, ownerEmail, memberships, impersonating } = data;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [chosenFile, setChosenFile] = useState<File | null>(null);
 
@@ -844,23 +855,19 @@ function PreviewBody({
   const isUploading = isBusy && submittingIntent === 'upload-doc';
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f3f4f6',
-        padding: 24,
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
+    <AdminShell
+      active="settings"
+      workspaceName={workspaceName}
+      ownerEmail={ownerEmail}
+      memberships={memberships}
+      impersonating={impersonating}
     >
       <div
         className="resp-two-col"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(360px, 420px) 1fr',
+          gridTemplateColumns: 'minmax(340px, 400px) 1fr',
           gap: 24,
-          maxWidth: 1680,
-          margin: '0 auto',
           alignItems: 'start',
         }}
       >
@@ -1808,7 +1815,7 @@ function PreviewBody({
           </div>
         </div>
       </div>
-    </div>
+    </AdminShell>
   );
 }
 

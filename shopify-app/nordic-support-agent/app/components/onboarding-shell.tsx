@@ -95,7 +95,7 @@ export function OnboardingShell({
           Vitrio
         </div>
         <Link
-          to="/preview/chat"
+          to="/insights"
           style={{
             fontFamily: MONO_STACK,
             fontSize: 11,

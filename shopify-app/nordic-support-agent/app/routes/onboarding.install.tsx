@@ -34,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { workspace } = await requireWorkspace(request);
   await markOnboardingComplete(workspace.id);
-  return redirect('/preview/chat');
+  return redirect('/insights');
 };
 
 type Platform = 'shopify' | 'wordpress' | 'html';
@@ -60,7 +60,7 @@ export default function OnboardingInstall() {
       subtitle="Klistra in raden nedan på din sajt — boten är live så fort sidan laddats om. Förhandsvisningen till höger kör mot din riktiga konfiguration."
       showSkip={false}
       primaryLabel="Till dashboard"
-      primaryAction={{ method: 'POST', intent: 'complete', nextHref: '/preview/chat' }}
+      primaryAction={{ method: 'POST', intent: 'complete', nextHref: '/insights' }}
       primaryActionState={fetcher.state}
     >
       <Form method="post" id="onboarding-form" style={{ display: 'none' }} />
