@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs, MetaFunction, LinksFunction } from 'react-router';
 import { redirect, Link } from 'react-router';
+import { color, font } from '../../components/ui/theme';
 
 /**
  * Public landing (vitrio.se). The dashboard lives on its own subdomain
@@ -43,14 +44,14 @@ export const links: LinksFunction = () => [
 
 const CSS = `
   .vt-root {
-    --paper: #f7f6f3;
-    --panel: #ededea;
-    --ink: #12140f;
-    --gray: #71716b;
-    --hairline: #e2e1db;
-    --green: #0e3d2a;
-    --green-deep: #0a2f21;
-    --sans: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --paper: ${color.paper};
+    --panel: ${color.panel};
+    --ink: ${color.ink};
+    --gray: ${color.muted};
+    --hairline: ${color.line};
+    --green: ${color.brand};
+    --green-deep: ${color.brandDeep};
+    --sans: ${font.sans};
     font-family: var(--sans);
     background: var(--paper);
     color: var(--ink);

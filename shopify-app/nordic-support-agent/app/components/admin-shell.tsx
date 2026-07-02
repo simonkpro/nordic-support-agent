@@ -1,6 +1,7 @@
 import { Form, Link } from 'react-router';
 import type { ReactNode } from 'react';
 import type { MembershipSummary } from '../lib/workspace-auth.ts';
+import { color, font } from './ui/theme';
 
 /**
  * Shared admin shell — left rail with primary navigation, cream backdrop,
@@ -10,27 +11,27 @@ import type { MembershipSummary } from '../lib/workspace-auth.ts';
  * the consistent chrome. Each route renders its own header inside.
  */
 
-// Palette shared with the public lander (app/routes/_index/route.tsx) so the
-// marketing site and the product read as one system: cool paper, near-black
-// ink, a single deep racing-green accent, hairline dividers.
+// Dashboard palette, derived from the single design-token source
+// (components/ui/theme.ts) so the lander, sign-in, and dashboard share one
+// place to edit. These key names are kept stable — every route reads
+// SHELL_TOKENS.* — while the values come from the theme.
 const PALETTE = {
-  bg: '#f7f6f3',           // page background — cool paper
-  card: '#ffffff',         // panel surface — white
-  ink: '#12140f',          // primary text — near-black
-  muted: '#71716b',        // secondary text — neutral grey
-  line: '#e2e1db',         // hairline borders
-  lineDash: '#e2e1db',     // dividers (now solid hairlines, same tone)
-  accent: '#0e3d2a',       // deep green (matches brand; tan retired)
-  brand: '#0e3d2a',        // deep racing green
-  green: '#2f7d5a',        // resolved / positive
-  amber: '#b7791f',        // escalated
-  grey: '#9a9a94',         // abandoned
+  bg: color.paper,
+  card: color.card,
+  ink: color.ink,
+  muted: color.muted,
+  line: color.line,
+  lineDash: color.line,
+  accent: color.brand,
+  brand: color.brand,
+  green: color.success,
+  amber: color.warning,
+  grey: color.grey,
 };
 
 export const SHELL_TOKENS = PALETTE;
 
-const FONT_STACK =
-  '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
+const FONT_STACK = font.sans;
 
 export type AdminSection = 'insights' | 'conversations' | 'settings' | 'account';
 
@@ -253,45 +254,10 @@ export function PageHeader({
   );
 }
 
-export function Card({
-  children,
-  padding = 24,
-  style,
-}: {
-  children: ReactNode;
-  padding?: number;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <div
-      style={{
-        background: PALETTE.card,
-        border: `1px solid ${PALETTE.line}`,
-        borderRadius: 12,
-        padding,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 13,
-        letterSpacing: 0,
-        color: PALETTE.muted,
-        fontWeight: 500,
-        marginBottom: 14,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
+// Card + SectionLabel now live in the shared ui library; re-exported here so
+// the many `import { Card, SectionLabel } from '../components/admin-shell'`
+// call sites keep working against a single implementation.
+export { Card, SectionLabel } from './ui';
 
 export function OutcomeDot({ outcome }: { outcome: 'resolved' | 'escalated' | 'abandoned' }) {
   const color =

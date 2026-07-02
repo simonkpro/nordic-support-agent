@@ -114,6 +114,12 @@
   accent-color: #0e3d2a;
 }
 
+/* Shared UI control focus ring (components/ui form primitives). */
+.ui-control:focus {
+  border-color: #0e3d2a;
+  box-shadow: 0 0 0 3px rgba(14, 61, 42, 0.12);
+}
+
 .onb-progress { display: none; }
 .onb-progress-fill {
   height: 100%;

@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs, LinksFunction, MetaFunctio
 import { Form, Link, useActionData, useNavigation, redirect } from 'react-router';
 import { startSignIn, getSessionFromRequest } from '../lib/workspace-auth.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
+import { color, font } from '../components/ui/theme';
 
 /**
  * Magic-link sign-in. Invite-only: workspaces are provisioned by the
@@ -53,19 +54,19 @@ export const links: LinksFunction = () => [
   },
 ];
 
-/* Palette mirrors SHELL_TOKENS in admin-shell.tsx. */
+/* Colours + type come from the shared design tokens. */
 const T = {
-  bg: '#f7f6f3',
-  card: '#ffffff',
-  ink: '#12140f',
-  muted: '#71716b',
-  line: '#e2e1db',
-  tan: '#71716b',
-  forest: '#0e3d2a',
-  green: '#0e3d2a',
-  red: '#a3452e',
+  bg: color.paper,
+  card: color.card,
+  ink: color.ink,
+  muted: color.muted,
+  line: color.line,
+  tan: color.muted,
+  forest: color.brand,
+  green: color.brand,
+  red: color.danger,
 };
-const SANS = '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
+const SANS = font.sans;
 
 export default function SignIn() {
   const data = useActionData<typeof action>();

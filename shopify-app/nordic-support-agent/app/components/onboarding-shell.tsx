@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { SHELL_TOKENS } from './admin-shell';
+import { font } from './ui/theme';
 
 /**
  * Onboarding wrapper. Full-page, no admin sidebar — first-run users see
@@ -13,10 +14,8 @@ import { SHELL_TOKENS } from './admin-shell';
  * and the live product feel like the same surface.
  */
 
-const FONT_STACK =
-  '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
-const MONO_STACK =
-  '"JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+const FONT_STACK = font.sans;
+const MONO_STACK = font.mono;
 
 export const STEPS = [
   { key: 'welcome', label: 'Välkommen', href: '/onboarding/welcome', required: true },

@@ -3,6 +3,7 @@ import { Form, Link, redirect, useActionData, useLoaderData, useNavigation } fro
 import { requirePlatformAdmin } from '../lib/workspace-auth.ts';
 import { createWorkspaceWithOwner, listWorkspacesWithUsage } from '../lib/admin.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
+import { Button, Field, Input } from '../components/ui';
 
 /**
  * Workspace overview: every client tenant with 30-day usage, plus the
@@ -118,43 +119,33 @@ export default function AdminIndex() {
 
         <Card>
           <SectionLabel>New client workspace</SectionLabel>
-          <Form method="post">
+          <Form method="post" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <input type="hidden" name="intent" value="create" />
-            <label
-              htmlFor="admin-create-name"
-              style={{ display: 'block', fontSize: 13, color: t.muted, marginBottom: 4 }}
-            >
-              Workspace name
-            </label>
-            <input
-              id="admin-create-name"
-              name="name"
-              required
-              maxLength={80}
-              placeholder="Acme Clinic"
-              style={inputStyle}
-            />
-            <label
-              htmlFor="admin-create-owner"
-              style={{ display: 'block', fontSize: 13, color: t.muted, margin: '12px 0 4px' }}
-            >
-              Owner email
-            </label>
-            <input
-              id="admin-create-owner"
-              name="ownerEmail"
-              type="email"
-              required
-              placeholder="owner@client.com"
-              style={inputStyle}
-            />
+            <Field label="Workspace name" htmlFor="admin-create-name">
+              <Input
+                id="admin-create-name"
+                name="name"
+                required
+                maxLength={80}
+                placeholder="Acme Clinic"
+              />
+            </Field>
+            <Field label="Owner email" htmlFor="admin-create-owner">
+              <Input
+                id="admin-create-owner"
+                name="ownerEmail"
+                type="email"
+                required
+                placeholder="owner@client.com"
+              />
+            </Field>
             <label
               htmlFor="admin-create-invite"
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 8,
-                margin: '14px 0 2px',
+                marginTop: 2,
                 fontSize: 13,
                 color: t.ink,
                 cursor: 'pointer',
@@ -174,11 +165,11 @@ export default function AdminIndex() {
                 </span>
               </span>
             </label>
-            <button type="submit" disabled={submitting} style={buttonStyle(submitting)}>
+            <Button type="submit" pill fullWidth disabled={submitting} style={{ marginTop: 4 }}>
               {submitting ? 'Creating…' : 'Create workspace'}
-            </button>
+            </Button>
             {data?.error && (
-              <p style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{data.error}</p>
+              <p style={{ marginTop: 2, color: t.amber, fontSize: 13 }}>{data.error}</p>
             )}
           </Form>
         </Card>
@@ -187,27 +178,3 @@ export default function AdminIndex() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '9px 11px',
-  border: `1px solid ${SHELL_TOKENS.lineDash}`,
-  borderRadius: 8,
-  fontSize: 14,
-  boxSizing: 'border-box',
-  background: '#fff',
-};
-
-function buttonStyle(submitting: boolean): React.CSSProperties {
-  return {
-    marginTop: 16,
-    width: '100%',
-    background: SHELL_TOKENS.brand,
-    color: '#fff',
-    border: 'none',
-    padding: '11px 16px',
-    borderRadius: 999,
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: submitting ? 'wait' : 'pointer',
-  };
-}
