@@ -435,10 +435,21 @@ export function buildTools(
             reason: 'verification_required',
           });
         }
-        if (!lookupTracking) {
+        if (!lookupTracking || !lookupOrder) {
           return record('get_tracking', { order_number }, {
             tracking: null,
             reason: 'not_configured',
+          });
+        }
+        // SECURITY: verified identity alone is not enough — confirm THIS
+        // order belongs to the verified email before releasing carrier data,
+        // otherwise a customer verified for their own address could pull any
+        // (enumerable) order number's tracking. Mirrors the Tier-1 guard.
+        const owned = await lookupOrder(order_number, verifiedEmail);
+        if (!owned) {
+          return record('get_tracking', { order_number }, {
+            tracking: null,
+            reason: 'not_found_or_email_mismatch',
           });
         }
         const tracking = await lookupTracking(order_number);
@@ -465,10 +476,19 @@ export function buildTools(
             reason: 'verification_required',
           });
         }
-        if (!lookupRefund) {
+        if (!lookupRefund || !lookupOrder) {
           return record('get_refund_info', { order_number }, {
             refundInfo: null,
             reason: 'not_configured',
+          });
+        }
+        // SECURITY: confirm this order belongs to the verified email before
+        // releasing refund data (see get_tracking above).
+        const owned = await lookupOrder(order_number, verifiedEmail);
+        if (!owned) {
+          return record('get_refund_info', { order_number }, {
+            refundInfo: null,
+            reason: 'not_found_or_email_mismatch',
           });
         }
         const refundInfo = (await lookupRefund(order_number))?.data ?? null;
