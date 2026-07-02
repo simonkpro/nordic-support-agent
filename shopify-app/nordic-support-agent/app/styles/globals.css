@@ -102,3 +102,42 @@
   /* Oversized page headings tighten up on small screens. */
   .resp-h1 { font-size: 22px !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Onboarding — native-app feel on mobile: a slim top progress bar     */
+/* instead of the cramped horizontal stepper, and a pinned bottom      */
+/* action bar so the primary CTA is always in reach.                   */
+/* ------------------------------------------------------------------ */
+.onb-progress { display: none; }
+.onb-progress-fill {
+  height: 100%;
+  background: #0e3d2a;
+  border-radius: 0 3px 3px 0;
+  transition: width 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (max-width: 860px) {
+  .onb-stepper { display: none !important; }
+  .onb-progress {
+    display: block;
+    height: 3px;
+    background: #e2e1db;
+  }
+  .onb-footer {
+    position: sticky !important;
+    bottom: 0;
+    z-index: 20;
+    height: auto !important;
+    min-height: 0;
+    padding: 12px 16px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 12px;
+    box-shadow: 0 -1px 0 #e2e1db, 0 -10px 28px -20px rgba(18, 20, 15, 0.3);
+  }
+  /* Onboarding header matches the compact top bar treatment. */
+  .onb-header {
+    height: auto !important;
+    min-height: 0;
+    padding: 12px 16px !important;
+  }
+}

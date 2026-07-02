@@ -81,7 +81,7 @@ export function OnboardingShell({
     >
       {/* Top header */}
       <header
-        className="resp-header"
+        className="onb-header"
         style={{
           height: 64,
           borderBottom: `1px solid ${SHELL_TOKENS.line}`,
@@ -108,17 +108,26 @@ export function OnboardingShell({
         </Link>
       </header>
 
-      {/* Stepper */}
+      {/* Stepper (desktop) */}
       <div
-        className="resp-scroll-x"
+        className="onb-stepper"
         style={{
           padding: '24px 40px',
           display: 'flex',
           justifyContent: 'center',
-          borderBottom: `1px dashed ${SHELL_TOKENS.lineDash}`,
+          borderBottom: `1px solid ${SHELL_TOKENS.line}`,
         }}
       >
         <Stepper active={stepNumber} />
+      </div>
+
+      {/* Progress bar (mobile) — a slim native-app style indicator that
+       * replaces the cramped horizontal stepper on small screens. */}
+      <div className="onb-progress" aria-hidden="true">
+        <div
+          className="onb-progress-fill"
+          style={{ width: `${(stepNumber / totalSteps) * 100}%` }}
+        />
       </div>
 
       {/* Content */}
@@ -175,9 +184,9 @@ export function OnboardingShell({
         {children}
       </main>
 
-      {/* Footer */}
+      {/* Footer — sticky bottom action bar on mobile (native-app feel). */}
       <footer
-        className="resp-header"
+        className="onb-footer"
         style={{
           height: 76,
           borderTop: `1px solid ${SHELL_TOKENS.line}`,
