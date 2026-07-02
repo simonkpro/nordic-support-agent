@@ -9,6 +9,10 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
+  // Migrations need a non-transaction-pooled connection: Supabase's
+  // pgbouncer port (6543) hangs prisma migrate's advisory locks. The
+  // app keeps the pooled URL; CLI commands use this session-mode URL.
+  directUrl  = env("DIRECT_URL")
   // pgvector is enabled in the DB; declaring it here lets Prisma keep it
   // in sync via `prisma migrate`.
   extensions = [vector]
