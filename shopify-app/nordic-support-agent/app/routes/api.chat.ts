@@ -2,10 +2,10 @@ import type { ActionFunctionArgs } from 'react-router';
 import { runAgent, LIMITS, LimitExceededError } from '@nordic-support/agent/run';
 import type { ModelMessage } from 'ai';
 import {
-  ConsoleEmailSender,
   type RuntimeContext,
   type SystemPromptContext,
 } from '@nordic-support/agent';
+import { getVerificationEmailSender } from '../lib/verification-email.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
 import {
   appendTurns,
@@ -110,7 +110,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  const decision = takeToken(getClientIp(request), RATE_LIMIT);
+  const decision = await takeToken(getClientIp(request), RATE_LIMIT);
   if (!decision.allowed) {
     return new Response(
       JSON.stringify({ error: 'rate_limited', retryAfterSeconds: decision.retryAfterSeconds }),
@@ -272,7 +272,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     conversationId: convo.id,
     verifiedEmail: convo.verifiedEmail,
     verificationStore: new PrismaVerificationStore(),
-    emailSender: new ConsoleEmailSender(),
+    emailSender: getVerificationEmailSender(),
     knowledgeSearch: async (q) => {
       const rows = await searchKnowledge(shop, assistant.id, q);
       return rows.map((r) => ({
