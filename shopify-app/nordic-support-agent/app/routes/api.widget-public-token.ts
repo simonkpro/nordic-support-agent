@@ -54,7 +54,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json(405, { error: 'GET only' }, cors);
   }
 
-  const decision = takeToken(getClientIp(request), RATE_LIMIT);
+  const decision = await takeToken(getClientIp(request), RATE_LIMIT);
   if (!decision.allowed) {
     return new Response(
       JSON.stringify({ error: 'rate_limited', retryAfterSeconds: decision.retryAfterSeconds }),

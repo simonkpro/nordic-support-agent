@@ -24,7 +24,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const decision = takeToken(getClientIp(request), IP_RATE);
+  const decision = await takeToken(getClientIp(request), IP_RATE);
   if (!decision.allowed) {
     return { ok: false, error: 'För många försök. Prova igen om en minut.' };
   }

@@ -48,7 +48,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json(405, { error: 'POST only' }, h);
   }
 
-  const ipDecision = takeToken(getClientIp(request), IP_RATE);
+  const ipDecision = await takeToken(getClientIp(request), IP_RATE);
   if (!ipDecision.allowed) {
     return json(429, { error: 'rate_limited' }, h);
   }
@@ -78,7 +78,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json(200, { ok: true }, h);
   }
 
-  const emailDecision = takeToken(`dsar:${email}`, EMAIL_RATE);
+  const emailDecision = await takeToken(`dsar:${email}`, EMAIL_RATE);
   if (!emailDecision.allowed) {
     return json(200, { ok: true }, h);
   }
