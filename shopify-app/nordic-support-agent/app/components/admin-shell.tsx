@@ -10,24 +10,27 @@ import type { MembershipSummary } from '../lib/workspace-auth.ts';
  * the consistent chrome. Each route renders its own header inside.
  */
 
+// Palette shared with the public lander (app/routes/_index/route.tsx) so the
+// marketing site and the product read as one system: cool paper, near-black
+// ink, a single deep racing-green accent, hairline dividers.
 const PALETTE = {
-  bg: '#f7f4ee',           // page background — warm cream
-  card: '#fffdf8',         // panel surface — off-white
-  ink: '#1f2823',          // primary text — near-black sage
-  muted: '#6b6359',        // secondary text — warm grey
-  line: '#ece6d8',         // hairline borders
-  lineDash: '#dcd3bc',     // dashed dividers
-  accent: '#c8a87a',       // warm tan
-  brand: '#2c4a3e',        // deep forest sage
-  green: '#5b8a72',        // resolved
-  amber: '#c8924a',        // escalated
-  grey: '#a39989',         // abandoned
+  bg: '#f7f6f3',           // page background — cool paper
+  card: '#ffffff',         // panel surface — white
+  ink: '#12140f',          // primary text — near-black
+  muted: '#71716b',        // secondary text — neutral grey
+  line: '#e2e1db',         // hairline borders
+  lineDash: '#e2e1db',     // dividers (now solid hairlines, same tone)
+  accent: '#0e3d2a',       // deep green (matches brand; tan retired)
+  brand: '#0e3d2a',        // deep racing green
+  green: '#2f7d5a',        // resolved / positive
+  amber: '#b7791f',        // escalated
+  grey: '#9a9a94',         // abandoned
 };
 
 export const SHELL_TOKENS = PALETTE;
 
 const FONT_STACK =
-  '"Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export type AdminSection = 'insights' | 'conversations' | 'settings' | 'account';
 
@@ -214,7 +217,7 @@ export function PageHeader({
         justifyContent: 'space-between',
         marginBottom: 32,
         paddingBottom: 20,
-        borderBottom: `1px dashed ${PALETTE.lineDash}`,
+        borderBottom: `1px solid ${PALETTE.line}`,
         gap: 24,
       }}
     >
@@ -278,11 +281,10 @@ export function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 11,
-        textTransform: 'uppercase',
-        letterSpacing: '0.12em',
+        fontSize: 13,
+        letterSpacing: 0,
         color: PALETTE.muted,
-        fontWeight: 600,
+        fontWeight: 500,
         marginBottom: 14,
       }}
     >

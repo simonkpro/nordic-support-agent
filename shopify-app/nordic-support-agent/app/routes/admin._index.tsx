@@ -204,9 +204,10 @@ function buttonStyle(submitting: boolean): React.CSSProperties {
     background: SHELL_TOKENS.brand,
     color: '#fff',
     border: 'none',
-    padding: '10px 14px',
-    borderRadius: 8,
+    padding: '11px 16px',
+    borderRadius: 999,
     fontSize: 14,
+    fontWeight: 500,
     cursor: submitting ? 'wait' : 'pointer',
   };
 }

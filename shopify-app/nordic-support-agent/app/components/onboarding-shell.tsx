@@ -14,7 +14,7 @@ import { SHELL_TOKENS } from './admin-shell';
  */
 
 const FONT_STACK =
-  '"Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const MONO_STACK =
   '"JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
@@ -260,11 +260,11 @@ export function OnboardingShell({
             <Link
               to={onPrimaryHref}
               style={{
-                background: SHELL_TOKENS.ink,
+                background: SHELL_TOKENS.brand,
                 color: '#fff',
-                padding: '10px 20px',
-                borderRadius: 8,
-                fontSize: 13,
+                padding: '11px 22px',
+                borderRadius: 999,
+                fontSize: 14,
                 fontWeight: 500,
                 textDecoration: 'none',
                 opacity: primaryDisabled ? 0.5 : 1,
@@ -295,12 +295,12 @@ function PrimarySubmitButton({
       form="onboarding-form"
       disabled={isSubmitting || disabled}
       style={{
-        background: SHELL_TOKENS.ink,
+        background: SHELL_TOKENS.brand,
         color: '#fff',
         border: 0,
-        padding: '10px 20px',
-        borderRadius: 8,
-        fontSize: 13,
+        padding: '11px 22px',
+        borderRadius: 999,
+        fontSize: 14,
         fontWeight: 500,
         cursor: isSubmitting || disabled ? 'wait' : 'pointer',
         fontFamily: 'inherit',
