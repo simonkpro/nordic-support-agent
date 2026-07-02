@@ -131,10 +131,13 @@ export async function getWorkspaceDetail(workspaceId: string): Promise<{
   };
 }
 
-/** Provision a client workspace: upsert the owner's User row, create the
- * workspace + owner membership, and send the sign-in invite email. */
+/** Provision a client workspace: upsert the owner's User row and create
+ * the workspace + owner membership. The sign-in invite is only sent when
+ * `sendInvite` is true — the admin can set a workspace up (configure the
+ * assistant via impersonation, etc.) and invite the owner later from the
+ * workspace detail page. */
 export async function createWorkspaceWithOwner(
-  args: { name: string; ownerEmail: string; adminUserId: string },
+  args: { name: string; ownerEmail: string; adminUserId: string; sendInvite: boolean },
   baseUrl: string,
 ): Promise<{ ok: true; workspaceId: string } | { ok: false; error: string }> {
   const email = normaliseEmail(args.ownerEmail);
@@ -159,15 +162,48 @@ export async function createWorkspaceWithOwner(
         adminUserId: args.adminUserId,
         action: 'workspace_create',
         workspaceId: ws.id,
-        detail: JSON.stringify({ name, ownerEmail: email }),
+        detail: JSON.stringify({ name, ownerEmail: email, invited: args.sendInvite }),
       },
     });
     return ws;
   });
 
-  // Best-effort invite; the owner can also request a link at /signin.
-  await startSignIn(email, baseUrl).catch(() => undefined);
+  if (args.sendInvite) {
+    // Best-effort; the owner can also request a link at /signin.
+    await startSignIn(email, baseUrl).catch(() => undefined);
+  }
   return { ok: true, workspaceId: workspace.id };
+}
+
+/** (Re)send a sign-in invite to an existing member of a workspace. Used
+ * to invite the owner after a set-up-first workspace creation, or to
+ * resend a lost link. Verifies the email really belongs to this
+ * workspace so the admin can't be tricked into mailing an arbitrary
+ * address via a forged form field. */
+export async function sendWorkspaceInvite(
+  workspaceId: string,
+  rawEmail: string,
+  adminUserId: string,
+  baseUrl: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const email = normaliseEmail(rawEmail);
+  if (!email) return { ok: false, error: 'Invalid email.' };
+  const membership = await prisma.workspaceMembership.findFirst({
+    where: { workspaceId, user: { email } },
+    select: { id: true },
+  });
+  if (!membership) return { ok: false, error: 'That email is not a member of this workspace.' };
+
+  await prisma.adminAuditLog.create({
+    data: {
+      adminUserId,
+      action: 'invite_send',
+      workspaceId,
+      detail: JSON.stringify({ email }),
+    },
+  });
+  await startSignIn(email, baseUrl).catch(() => undefined);
+  return { ok: true };
 }
 
 export async function renameWorkspace(

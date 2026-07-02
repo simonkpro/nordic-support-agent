@@ -31,6 +31,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       name: String(form.get('name') ?? ''),
       ownerEmail: String(form.get('ownerEmail') ?? ''),
       adminUserId: session.user.id,
+      sendInvite: form.get('sendInvite') === 'on',
     },
     baseUrl,
   );
@@ -147,8 +148,34 @@ export default function AdminIndex() {
               placeholder="owner@client.com"
               style={inputStyle}
             />
+            <label
+              htmlFor="admin-create-invite"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                margin: '14px 0 2px',
+                fontSize: 13,
+                color: t.ink,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                id="admin-create-invite"
+                name="sendInvite"
+                type="checkbox"
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                Send the sign-in invite now
+                <span style={{ display: 'block', color: t.muted, fontSize: 12, marginTop: 2 }}>
+                  Leave off to set up the workspace and prepare a demo first — you
+                  can invite the owner later from the workspace page.
+                </span>
+              </span>
+            </label>
             <button type="submit" disabled={submitting} style={buttonStyle(submitting)}>
-              {submitting ? 'Creating…' : 'Create + send invite'}
+              {submitting ? 'Creating…' : 'Create workspace'}
             </button>
             {data?.error && (
               <p style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{data.error}</p>

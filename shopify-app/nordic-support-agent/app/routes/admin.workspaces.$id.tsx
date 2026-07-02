@@ -5,6 +5,7 @@ import {
   addMember,
   getWorkspaceDetail,
   renameWorkspace,
+  sendWorkspaceInvite,
   setWorkspaceDisabled,
 } from '../lib/admin.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
@@ -54,6 +55,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     );
     return result.ok ? { ok: true } : { error: result.error };
   }
+  if (intent === 'invite') {
+    const fwdProto = request.headers.get('X-Forwarded-Proto');
+    const fwdHost = request.headers.get('X-Forwarded-Host') ?? request.headers.get('Host');
+    const baseUrl =
+      fwdProto && fwdHost ? `${fwdProto}://${fwdHost}` : new URL(request.url).origin;
+    const result = await sendWorkspaceInvite(
+      workspaceId,
+      String(form.get('email') ?? ''),
+      session.user.id,
+      baseUrl,
+    );
+    return result.ok ? { ok: true, sentTo: String(form.get('email') ?? '') } : { error: result.error };
+  }
   if (intent === 'impersonate') {
     await startImpersonation(session.id, session.user, workspaceId);
     throw redirect('/insights');
@@ -89,6 +103,9 @@ export default function AdminWorkspaceDetail() {
         }
       />
       {data?.error && <p style={{ color: '#b91c1c', fontSize: 13 }}>{data.error}</p>}
+      {data && 'sentTo' in data && data.sentTo && (
+        <p style={{ color: t.green, fontSize: 13 }}>Sign-in link sent to {data.sentTo}.</p>
+      )}
 
       <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -109,10 +126,39 @@ export default function AdminWorkspaceDetail() {
               {workspace.members.map((m) => (
                 <div
                   key={m.membershipId}
-                  style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 10,
+                    fontSize: 13.5,
+                  }}
                 >
-                  <span>{m.email}</span>
-                  <span style={{ color: t.muted }}>{m.role}</span>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {m.email}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span style={{ color: t.muted }}>{m.role}</span>
+                    <Form method="post">
+                      <input type="hidden" name="intent" value="invite" />
+                      <input type="hidden" name="email" value={m.email} />
+                      <button
+                        type="submit"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: t.brand,
+                          fontSize: 12.5,
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline',
+                          textUnderlineOffset: 2,
+                        }}
+                      >
+                        Send sign-in link
+                      </button>
+                    </Form>
+                  </span>
                 </div>
               ))}
             </div>
