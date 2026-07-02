@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useLoaderData } from 'react-router';
 import prisma from '../db.server';
 import { requireWorkspace } from '../lib/workspace-auth.ts';
 import { AdminShell, Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
+import { Button, Input } from '../components/ui';
 
 /**
  * Client-facing workspace settings: rename (owners only), member list,
@@ -60,35 +61,10 @@ export default function Settings() {
           {data.canRename ? (
             <Form method="post" style={{ display: 'flex', gap: 8 }}>
               <input type="hidden" name="intent" value="rename" />
-              <input
-                name="name"
-                defaultValue={data.workspaceName}
-                maxLength={80}
-                style={{
-                  flex: 1,
-                  padding: '9px 11px',
-                  border: `1px solid ${t.lineDash}`,
-                  borderRadius: 8,
-                  fontSize: 14,
-                  background: '#fff',
-                  minWidth: 0,
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  background: t.brand,
-                  color: '#fff',
-                  border: 'none',
-                  padding: '9px 16px',
-                  borderRadius: 8,
-                  fontSize: 13.5,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
+              <Input name="name" defaultValue={data.workspaceName} maxLength={80} style={{ flex: 1 }} />
+              <Button type="submit" pill>
                 Spara
-              </button>
+              </Button>
             </Form>
           ) : (
             <p style={{ fontSize: 14, margin: 0 }}>{data.workspaceName}</p>

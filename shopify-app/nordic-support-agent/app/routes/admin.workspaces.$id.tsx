@@ -12,6 +12,7 @@ import { listAssistants } from '../lib/assistants.ts';
 import { checkFramable } from '../lib/safe-fetch.ts';
 import { signDemoLink, demoLinkExpiry } from '../lib/demo-link.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
+import { Button, Input, Select, color } from '../components/ui';
 
 /**
  * Single-workspace admin: rename, suspend/restore, add members, view the
@@ -142,13 +143,13 @@ export default function AdminWorkspaceDetail() {
         right={
           <Form method="post">
             <input type="hidden" name="intent" value="impersonate" />
-            <button type="submit" style={primaryButton}>
+            <Button type="submit" pill>
               View as workspace →
-            </button>
+            </Button>
           </Form>
         }
       />
-      {data?.error && <p style={{ color: '#b91c1c', fontSize: 13 }}>{data.error}</p>}
+      {data?.error && <p style={{ color: color.danger, fontSize: 13 }}>{data.error}</p>}
       {data && 'sentTo' in data && data.sentTo && (
         <p style={{ color: t.green, fontSize: 13 }}>Sign-in link sent to {data.sentTo}.</p>
       )}
@@ -159,10 +160,10 @@ export default function AdminWorkspaceDetail() {
             <SectionLabel>Rename</SectionLabel>
             <Form method="post" style={{ display: 'flex', gap: 8 }}>
               <input type="hidden" name="intent" value="rename" />
-              <input name="name" defaultValue={workspace.name} maxLength={80} style={inputStyle} />
-              <button type="submit" style={secondaryButton}>
+              <Input name="name" defaultValue={workspace.name} maxLength={80} style={{ flex: 1 }} />
+              <Button type="submit" variant="secondary" pill>
                 Save
-              </button>
+              </Button>
             </Form>
           </Card>
 
@@ -210,20 +211,20 @@ export default function AdminWorkspaceDetail() {
             </div>
             <Form method="post" style={{ display: 'flex', gap: 8 }}>
               <input type="hidden" name="intent" value="add-member" />
-              <input
+              <Input
                 name="email"
                 type="email"
                 required
                 placeholder="person@client.com"
-                style={inputStyle}
+                style={{ flex: 1 }}
               />
-              <select name="role" style={{ ...inputStyle, width: 110, flexShrink: 0 }}>
+              <Select name="role" style={{ width: 110, flexShrink: 0 }}>
                 <option value="member">member</option>
                 <option value="owner">owner</option>
-              </select>
-              <button type="submit" style={secondaryButton}>
+              </Select>
+              <Button type="submit" variant="secondary" pill>
                 Add
-              </button>
+              </Button>
             </Form>
           </Card>
 
@@ -236,16 +237,17 @@ export default function AdminWorkspaceDetail() {
             </p>
             <Form method="post">
               <input type="hidden" name="intent" value={disabled ? 'enable' : 'disable'} />
-              <button
+              <Button
                 type="submit"
+                variant="secondary"
+                pill
                 style={{
-                  ...secondaryButton,
-                  color: disabled ? t.green : '#b91c1c',
-                  borderColor: disabled ? t.green : '#b91c1c',
+                  color: disabled ? t.green : color.danger,
+                  borderColor: disabled ? t.green : color.danger,
                 }}
               >
                 {disabled ? 'Re-enable workspace' : 'Disable workspace'}
-              </button>
+              </Button>
             </Form>
           </Card>
 
@@ -262,22 +264,22 @@ export default function AdminWorkspaceDetail() {
             ) : (
               <Form method="post" style={{ display: 'flex', gap: 8 }}>
                 <input type="hidden" name="intent" value="demo-link" />
-                <input name="url" required placeholder="prospect.com" style={inputStyle} />
-                <button type="submit" style={secondaryButton}>
+                <Input name="url" required placeholder="prospect.com" style={{ flex: 1 }} />
+                <Button type="submit" variant="secondary" pill>
                   Generate
-                </button>
+                </Button>
               </Form>
             )}
             {data && 'demoError' in data && data.demoError && (
-              <p style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{data.demoError}</p>
+              <p style={{ marginTop: 10, color: color.danger, fontSize: 13 }}>{data.demoError}</p>
             )}
             {data && 'demoUrl' in data && data.demoUrl && (
               <div style={{ marginTop: 12 }}>
-                <input
+                <Input
                   readOnly
                   value={data.demoUrl}
                   onFocus={(e) => e.currentTarget.select()}
-                  style={{ ...inputStyle, width: '100%', fontSize: 12.5 }}
+                  style={{ fontSize: 12.5 }}
                 />
                 <div style={{ marginTop: 8 }}>
                   <a
@@ -330,35 +332,3 @@ export default function AdminWorkspaceDetail() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '9px 11px',
-  border: `1px solid ${SHELL_TOKENS.lineDash}`,
-  borderRadius: 8,
-  fontSize: 14,
-  boxSizing: 'border-box',
-  background: '#fff',
-  minWidth: 0,
-};
-
-const primaryButton: React.CSSProperties = {
-  background: SHELL_TOKENS.brand,
-  color: '#fff',
-  border: 'none',
-  padding: '11px 18px',
-  borderRadius: 999,
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: 'pointer',
-};
-
-const secondaryButton: React.CSSProperties = {
-  background: 'transparent',
-  color: SHELL_TOKENS.ink,
-  border: `1px solid ${SHELL_TOKENS.line}`,
-  padding: '9px 16px',
-  borderRadius: 999,
-  fontSize: 13.5,
-  cursor: 'pointer',
-  flexShrink: 0,
-};
