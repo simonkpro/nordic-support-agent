@@ -18,17 +18,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const meta: MetaFunction = () => [
-  { title: 'Vitrio — Kundservice, utan gissningar' },
+  { title: 'Vitrio — Kundtjänst som aldrig gissar' },
   {
     name: 'description',
     content:
-      'AI-kundtjänst för e-handel som bara svarar på det den kan belägga i din egen data. En rad kod att installera. Mänsklig överlämning när det behövs.',
+      'AI-kundtjänst för svensk e-handel. Svarar dygnet runt utifrån dina riktiga ordrar och policyer. Är den osäker kopplar den in dig i stället för att gissa.',
   },
-  { property: 'og:title', content: 'Vitrio — Kundservice, utan gissningar' },
+  { property: 'og:title', content: 'Vitrio — Kundtjänst som aldrig gissar' },
   {
     property: 'og:description',
     content:
-      'Grundad i din egen data. Mänsklig överlämning. Installeras med en rad kod.',
+      'Svarar dygnet runt på dina kunders frågor, hämtat från din egen data. Kopplar in dig när den är osäker. En rad kod att installera.',
   },
 ];
 
@@ -137,30 +137,6 @@ const CSS = `
   }
   .vt-snippet .c { color: var(--gray); }
 
-  /* ------- chat mock ------- */
-  .vt-chat {
-    background: #fff; border: 1px solid var(--hairline); border-radius: 16px;
-    overflow: hidden; box-shadow: 0 20px 50px -36px rgba(18,20,15,0.4);
-  }
-  .vt-chat-head {
-    padding: 13px 18px; font-size: 13.5px; font-weight: 500;
-    border-bottom: 1px solid var(--hairline);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .vt-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-  .vt-chat-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-  .vt-msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
-  .vt-msg-user { align-self: flex-end; background: var(--green); color: #fff; border-bottom-right-radius: 4px; }
-  .vt-msg-bot { align-self: flex-start; background: var(--paper); border: 1px solid var(--hairline); border-bottom-left-radius: 4px; }
-  .vt-msg-src {
-    font-size: 11px; color: var(--gray); margin-top: 8px; padding-top: 7px;
-    border-top: 1px solid var(--hairline);
-  }
-  .vt-chat-foot {
-    border-top: 1px solid var(--hairline); padding: 11px 18px;
-    font-size: 12.5px; color: var(--gray);
-  }
-
   /* ------- sections ------- */
   .vt-label {
     font-size: 13px; color: var(--gray); margin: 0 0 40px;
@@ -242,7 +218,15 @@ function Pill({
     <a className={cls} href={href}>
       {children}
       <span className="vt-arr" aria-hidden="true">
-        →
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path
+            d="M2.6 7h8.8M7.7 3.3 11.4 7l-3.7 3.7"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </span>
     </a>
   );
@@ -271,11 +255,11 @@ export default function Landing() {
 
         {/* ---------- hero ---------- */}
         <section className="vt-hero">
-          <h1 className="vt-h1">Kundservice, utan gissningar.</h1>
+          <h1 className="vt-h1">Kundtjänst som aldrig gissar.</h1>
           <p className="vt-lede">
-            Vitrio svarar på dina kunders frågor dygnet runt — utifrån dina
-            riktiga policyer, ordrar och leveransdata. Aldrig utifrån en
-            gissning.
+            Vitrio svarar på dina kunders frågor dygnet runt, hämtat från dina
+            riktiga ordrar, leveranser och policyer. Är den osäker chansar den
+            inte. Då kopplar den in dig.
           </p>
           <div className="vt-hero-cta">
             <Pill large href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>
@@ -291,12 +275,14 @@ export default function Landing() {
         <section className="vt-canvas">
           <div>
             <p className="vt-canvas-label">Installation</p>
-            <h2>En rad kod. Inget mer.</h2>
+            <h2>En rad kod. Sen är den igång.</h2>
             <p className="vt-body">
-              Fungerar på Shopify, WordPress och vanlig HTML. Ingen
-              build-process, ingen app att installera — klistra in raden före
-              stängande body-taggen så är widgeten live.
+              Funkar på Shopify, WordPress eller ren HTML. Ingen app, ingen
+              utvecklare. Klistra in raden på din sajt, så svarar boten på
+              nästa kund som skriver.
             </p>
+          </div>
+          <div>
             <div className="vt-snippet">
               <span className="c">&lt;!-- före &lt;/body&gt; --&gt;</span>
               <br />
@@ -304,33 +290,13 @@ export default function Landing() {
               data-assistant=&quot;…&quot; async defer&gt;&lt;/script&gt;
             </div>
           </div>
-          <div className="vt-chat" aria-hidden="true">
-            <div className="vt-chat-head">
-              <span className="vt-chat-dot" /> Kundservice
-            </div>
-            <div className="vt-chat-body">
-              <div className="vt-msg vt-msg-user">Hej! Var är min order? #10382</div>
-              <div className="vt-msg vt-msg-bot">
-                Hej Anna! Din order skickades igår med PostNord och beräknas
-                komma torsdag 4/7.
-                <div className="vt-msg-src">Källa: ordersystem · leveranspolicy</div>
-              </div>
-              <div className="vt-msg vt-msg-user">Kan jag ändra leveransadressen?</div>
-              <div className="vt-msg vt-msg-bot">
-                Det vill jag inte chansa på — jag kopplar in en kollega som kan
-                hjälpa dig direkt.
-                <div className="vt-msg-src">Överlämnad till människa · 14:02</div>
-              </div>
-            </div>
-            <div className="vt-chat-foot">Skriv ett meddelande …</div>
-          </div>
         </section>
 
         {/* ---------- statement ---------- */}
         <p className="vt-statement">
-          Varje kund. Varje fråga.
+          Inga påhittade svar.
           <br />
-          <span>Alltid belagt i din egen data.</span>
+          <span>Bara sånt du hade sagt själv.</span>
         </p>
 
         {/* ---------- how it works ---------- */}
@@ -339,26 +305,26 @@ export default function Landing() {
           <div className="vt-steps">
             <div className="vt-step">
               <span className="vt-num">01</span>
-              <h3>Vi bygger din kunskapsbas</h3>
+              <h3>Vi lär den din butik</h3>
               <p>
-                Policyer, FAQ och produktsidor läses in från din sajt och dina
-                dokument. Orderdata kopplas på där det finns.
+                Vi läser in dina policyer, din FAQ och dina produktsidor, och
+                kopplar på din orderdata. Du behöver inte lyfta ett finger.
               </p>
             </div>
             <div className="vt-step">
               <span className="vt-num">02</span>
-              <h3>Du klistrar in en rad kod</h3>
+              <h3>Du klistrar in en rad</h3>
               <p>
-                Shopify, WordPress eller vanlig HTML. Widgeten är live så fort
-                sidan laddats om.
+                Shopify, WordPress eller HTML. Boten är igång så fort sidan
+                laddats om. Tar ungefär fem minuter.
               </p>
             </div>
             <div className="vt-step">
               <span className="vt-num">03</span>
-              <h3>Du ser allt i din dashboard</h3>
+              <h3>Du ser varje samtal</h3>
               <p>
-                Varje konversation loggas: lösta ärenden, eskaleringar och
-                luckor i kunskapsbasen.
+                Vad kunderna frågar om, vad boten löste och vad den skickade
+                vidare till dig. Allt samlat i din dashboard.
               </p>
             </div>
           </div>
@@ -369,32 +335,34 @@ export default function Landing() {
           <p className="vt-label">Byggd för att vara pålitlig</p>
           <div className="vt-features">
             <div className="vt-feature">
-              <h3>Citerar det den ser — inte det den tror</h3>
+              <h3>Svarar bara på det den vet</h3>
               <p>
-                Svaren bygger på dina policyer, din orderdata och din
-                spårningsinformation. Finns inte svaret, säger boten det.
+                Boten hämtar svaren från dina policyer, din orderdata och din
+                spårning. Finns inte svaret säger den det, i stället för att
+                hitta på.
               </p>
             </div>
             <div className="vt-feature">
-              <h3>Vet när den ska släppa taget</h3>
+              <h3>Vet när den ska lämna över</h3>
               <p>
-                Känsliga ärenden och allt utanför kunskapsbasen eskaleras till
-                din inkorg med en färdig sammanfattning.
+                Känsliga ärenden och allt utanför kunskapsbasen går till dig,
+                med en färdig sammanfattning så du slipper läsa hela tråden.
               </p>
             </div>
             <div className="vt-feature">
-              <h3>Ser vad kunderna faktiskt frågar om</h3>
+              <h3>Visar var kunderna fastnar</h3>
               <p>
-                Dashboarden visar ämnen, lösningsgrad och kunskapsluckor — så
-                du vet exakt vilken policysida som saknas.
+                Dashboarden visar de vanligaste frågorna, hur många boten löste
+                och var din information är för tunn. Så du vet vilken sida du
+                borde skriva.
               </p>
             </div>
             <div className="vt-feature">
-              <h3>GDPR utan fotnoter</h3>
+              <h3>GDPR utan strul</h3>
               <p>
-                Data lagras inom EU. Ingen träning på dina kunders
-                konversationer. Kunder kan själva exportera eller radera sin
-                data direkt i widgeten.
+                All data lagras inom EU. Vi tränar aldrig på dina kunders
+                samtal. Och kunderna kan radera sin data själva, direkt i
+                chatten.
               </p>
             </div>
           </div>
@@ -402,10 +370,10 @@ export default function Landing() {
 
         {/* ---------- CTA panel ---------- */}
         <section className="vt-cta-panel">
-          <h2>Se den svara på dina egna kundfrågor.</h2>
+          <h2>Se hur den svarar dina kunder, innan den möter en enda.</h2>
           <p>
-            Vi sätter upp en pilot mot din riktiga kunskapsbas — du ser exakt
-            hur boten hade svarat dina kunder, innan den möter en enda.
+            Vi bygger en pilot på din riktiga kunskapsbas och visar dig svaren.
+            Gillar du inte vad du ser kostar det ingenting.
           </p>
           <Pill large inverse href={`mailto:${CONTACT_EMAIL}?subject=Pilot%20med%20Vitrio`}>
             Boka en demo
