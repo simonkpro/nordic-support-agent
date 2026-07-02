@@ -874,10 +874,10 @@ function PreviewBody({
         {/* === LEFT: settings panel === */}
         <div
           style={{
-            background: 'white',
+            background: '#fff',
             borderRadius: 12,
             padding: 20,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid #e2e1db',
             maxHeight: 'calc(100vh - 48px)',
             overflowY: 'auto',
           }}
@@ -1012,7 +1012,7 @@ function PreviewBody({
                 <div
                   key={i}
                   style={{
-                    background: '#f9fafb',
+                    background: '#f7f6f3',
                     borderRadius: 8,
                     padding: 10,
                     marginBottom: 8,
@@ -1064,7 +1064,7 @@ function PreviewBody({
                       alignItems: 'center',
                       gap: 6,
                       fontSize: 12,
-                      color: '#374151',
+                      color: '#71716b',
                       marginBottom: 6,
                     }}
                   >
@@ -1141,7 +1141,7 @@ function PreviewBody({
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
-                    color: '#374151',
+                    color: '#71716b',
                   }}
                 >
                   <input
@@ -1258,7 +1258,7 @@ function PreviewBody({
           <Field label="Felmeddelanden (tomt = använd standard på valt språk)">
             <div
               style={{
-                background: '#f9fafb',
+                background: '#f7f6f3',
                 borderRadius: 8,
                 padding: 10,
                 display: 'flex',
@@ -1311,7 +1311,7 @@ function PreviewBody({
                 <div
                   key={i}
                   style={{
-                    background: '#f9fafb',
+                    background: '#f7f6f3',
                     borderRadius: 8,
                     padding: 10,
                     marginBottom: 8,
@@ -1378,7 +1378,7 @@ function PreviewBody({
               <option value={1}>Lätt — ordernummer + e-post måste matcha (endast status)</option>
               <option value={2}>Stark — engångskod via e-post krävs (full PII)</option>
             </select>
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: '#9a9a94', marginTop: 4 }}>
               Lätt: agenten kan svara på ”var är min order” utan att läcka namn
               eller adress. Stark: krävs när agenten visar adress, betalning
               eller utför ändringar.
@@ -1393,7 +1393,7 @@ function PreviewBody({
               placeholder="support@example.com"
               style={inputStyle}
             />
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: '#9a9a94', marginTop: 4 }}>
               Tomt = ingen eskalering. Agenten kommer då hänvisa kunden till er
               vanliga kontaktadress istället för att skapa ett ärende.
             </div>
@@ -1417,7 +1417,7 @@ function PreviewBody({
               onChange={(e) => setHandoffBodyTemplate(e.target.value)}
               style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
             />
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: '#9a9a94', marginTop: 4 }}>
               Okända placeholders lämnas oförändrade (lätt att felsöka). Mejl skickas
               som ren text.
             </div>
@@ -1483,7 +1483,7 @@ function PreviewBody({
               placeholder="https://hopestockholm.com/sitemap.xml"
               style={inputStyle}
             />
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: '#9a9a94', marginTop: 4 }}>
               Vi hämtar varje sida, plockar huvudinnehållet och lägger till det i
               kunskapsbasen — varje träff bär med sig sidans URL så agenten kan länka till källan.
             </div>
@@ -1497,7 +1497,7 @@ function PreviewBody({
               placeholder={'/cart\n/checkout\n/account/*\n/products/*'}
               style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
             />
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: '#9a9a94', marginTop: 4 }}>
               <code>*</code> = ett segment, <code>**</code> = vad som helst. Standard
               skippar varukorg, kassa, kontosidor och produktsidor.
             </div>
@@ -1513,7 +1513,7 @@ function PreviewBody({
               {crawling ? 'Hämtar…' : 'Hämta & indexera nu'}
             </button>
             {crawling && (
-              <span style={{ fontSize: 12, color: '#6b7280' }}>
+              <span style={{ fontSize: 12, color: '#71716b' }}>
                 Kan ta en stund för större sajter.
               </span>
             )}
@@ -1572,7 +1572,7 @@ function PreviewBody({
           )}
 
           <h3 style={kbSubH}>Ladda upp dokument</h3>
-          <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+          <p style={{ fontSize: 12, color: '#71716b', margin: '0 0 12px' }}>
             PDF / Markdown / TXT, max 5 MB. Choose whether the doc is scoped to{' '}
             <strong>{active.name}</strong> only or shared with every assistant in the shop.
           </p>
@@ -1585,7 +1585,7 @@ function PreviewBody({
                   alignItems: 'center',
                   gap: 6,
                   fontSize: 13,
-                  color: '#374151',
+                  color: '#71716b',
                 }}
               >
                 <input
@@ -1602,7 +1602,7 @@ function PreviewBody({
                   alignItems: 'center',
                   gap: 6,
                   fontSize: 13,
-                  color: '#374151',
+                  color: '#71716b',
                 }}
               >
                 <input
@@ -1650,7 +1650,7 @@ function PreviewBody({
           )}
 
           {documents.length === 0 && (
-            <p style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+            <p style={{ fontSize: 12, color: '#9a9a94', fontStyle: 'italic' }}>
               No documents yet.
             </p>
           )}
@@ -1659,7 +1659,7 @@ function PreviewBody({
             <div
               key={d.id}
               style={{
-                background: '#f9fafb',
+                background: '#f7f6f3',
                 borderRadius: 8,
                 padding: 10,
                 marginBottom: 8,
@@ -1673,7 +1673,7 @@ function PreviewBody({
                   style={{
                     fontSize: 13,
                     fontWeight: 500,
-                    color: '#111827',
+                    color: '#12140f',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -1682,7 +1682,7 @@ function PreviewBody({
                 >
                   {d.filename}
                 </div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#71716b', marginTop: 2 }}>
                   {statusBadge(d.status)} · {d.chunkCount} chunks ·{' '}
                   {(d.sizeBytes / 1024).toFixed(1)} KB ·{' '}
                   {scopeLabel(d.assistantId, assistants, active.id)}
@@ -1782,7 +1782,7 @@ function PreviewBody({
                 borderRadius: 12,
                 overflow: 'hidden',
                 contain: 'layout',
-                border: '1px solid #e5e7eb',
+                border: '1px solid #e2e1db',
                 ['--primary' as string]: hexToHslComponents(primaryColor),
                 ['--ring' as string]: hexToHslComponents(accentColor),
               } as React.CSSProperties
@@ -1833,7 +1833,7 @@ function InstallSnippet({ origin, assistantId }: { origin: string; assistantId: 
   };
   return (
     <div style={{ marginTop: 4, marginBottom: 12 }}>
-      <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px 0', lineHeight: 1.45 }}>
+      <p style={{ fontSize: 12, color: '#71716b', margin: '0 0 8px 0', lineHeight: 1.45 }}>
         Klistra in den här raden i sajtens <code style={{ fontSize: 11 }}>{'<head>'}</code> eller
         precis innan <code style={{ fontSize: 11 }}>{'</body>'}</code>. Widgeten hämtar
         en kortlivad publik token och konfigurationen automatiskt.
@@ -1857,7 +1857,7 @@ function InstallSnippet({ origin, assistantId }: { origin: string; assistantId: 
         <button type="button" onClick={copy} style={secondaryButtonStyle}>
           {copied ? 'Kopierat' : 'Kopiera'}
         </button>
-        <span style={{ fontSize: 11, color: '#9ca3af' }}>
+        <span style={{ fontSize: 11, color: '#9a9a94' }}>
           Token-livslängd 24 h — widgeten förnyar automatiskt vid varje besök.
         </span>
       </div>
@@ -1899,8 +1899,8 @@ function InstallSecurity({
     fetcher.submit(fd, { method: 'post' });
   };
 
-  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: '#374151' };
-  const helpStyle: React.CSSProperties = { fontSize: 11, color: '#6b7280', margin: '4px 0 8px 0' };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: '#71716b' };
+  const helpStyle: React.CSSProperties = { fontSize: 11, color: '#71716b', margin: '4px 0 8px 0' };
 
   return (
     <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1938,7 +1938,7 @@ function InstallSecurity({
             padding: 8,
             fontSize: 12,
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            border: '1px solid #d1d5db',
+            border: '1px solid #e2e1db',
             borderRadius: 6,
             resize: 'vertical',
           }}
@@ -1989,17 +1989,17 @@ function SectionHeader({
         padding: '8px 0',
         fontSize: 14,
         fontWeight: 600,
-        color: '#111827',
+        color: '#12140f',
         background: 'transparent',
         border: 'none',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid #e2e1db',
         cursor: 'pointer',
         textAlign: 'left',
       }}
       aria-expanded={open}
     >
       <span>{label}</span>
-      <span style={{ fontSize: 12, color: '#6b7280', transition: 'transform 120ms', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+      <span style={{ fontSize: 12, color: '#71716b', transition: 'transform 120ms', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
         ▶
       </span>
     </button>
@@ -2009,7 +2009,7 @@ function SectionHeader({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+      <label style={{ display: 'block', fontSize: 12, color: '#71716b', marginBottom: 4 }}>
         {label}
       </label>
       {children}
@@ -2030,7 +2030,7 @@ function ErrorPhraseRow({
 }) {
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 11, color: '#374151', marginBottom: 2 }}>
+      <label style={{ display: 'block', fontSize: 11, color: '#71716b', marginBottom: 2 }}>
         {label}
       </label>
       <input
@@ -2073,54 +2073,54 @@ const sectionH2: React.CSSProperties = {
   margin: '20px 0 12px',
   fontSize: 14,
   fontWeight: 600,
-  color: '#111827',
+  color: '#12140f',
   paddingBottom: 6,
-  borderBottom: '1px solid #e5e7eb',
+  borderBottom: '1px solid #e2e1db',
 };
 
 const kbSubH: React.CSSProperties = {
   margin: '12px 0 8px',
   fontSize: 12,
   fontWeight: 600,
-  color: '#6b7280',
+  color: '#71716b',
   textTransform: 'uppercase',
   letterSpacing: 0.4,
 };
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '8px 10px',
+  padding: '9px 11px',
   fontSize: 13,
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
+  border: '1px solid #e2e1db',
+  borderRadius: 8,
   outline: 'none',
-  background: 'white',
-  color: '#111827',
+  background: '#fff',
+  color: '#12140f',
 };
 
 const primaryButtonStyle: React.CSSProperties = {
-  padding: '8px 16px',
+  padding: '9px 18px',
   fontSize: 13,
   fontWeight: 500,
-  background: '#1f2937',
-  color: 'white',
+  background: '#0e3d2a',
+  color: '#fff',
   border: 'none',
-  borderRadius: 6,
+  borderRadius: 999,
   cursor: 'pointer',
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
   ...primaryButtonStyle,
-  background: 'white',
-  color: '#1f2937',
-  border: '1px solid #d1d5db',
+  background: '#fff',
+  color: '#12140f',
+  border: '1px solid #e2e1db',
 };
 
 const ghostButtonStyle: React.CSSProperties = {
   padding: '4px 8px',
   fontSize: 12,
   background: 'transparent',
-  color: '#6b7280',
+  color: '#71716b',
   border: 'none',
   cursor: 'pointer',
   textDecoration: 'underline',
@@ -2232,15 +2232,15 @@ function WidgetCustomizer(p: WidgetCustomizerProps) {
                 onClick={() => applyPreset(preset)}
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  gap: 6, padding: 8, border: active ? '1px solid #111827' : '1px solid #e5e7eb',
+                  gap: 6, padding: 8, border: active ? '1px solid #12140f' : '1px solid #e2e1db',
                   borderRadius: 10, background: '#fff', cursor: 'pointer', fontSize: 11,
-                  color: '#374151', fontFamily: 'inherit',
+                  color: '#71716b', fontFamily: 'inherit',
                 }}
               >
                 <span style={{
                   width: 28, height: 28, borderRadius: '50%',
                   background: preset.brand,
-                  border: '1px solid ' + (preset.theme === 'dark' ? '#334155' : '#e5e7eb'),
+                  border: '1px solid ' + (preset.theme === 'dark' ? '#334155' : '#e2e1db'),
                   position: 'relative', display: 'inline-block',
                 }}>
                   <span style={{
@@ -2413,13 +2413,13 @@ function CustomizerGroup({ title, hint, children }: {
   title: string; hint?: string; children: React.ReactNode;
 }) {
   return (
-    <div style={{ paddingBottom: 18, marginBottom: 18, borderBottom: '1px dashed #e5e7eb' }}>
+    <div style={{ paddingBottom: 18, marginBottom: 18, borderBottom: '1px dashed #e2e1db' }}>
       <h3 style={{
         fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
         color: '#6b6359', margin: '0 0 12px', fontWeight: 600,
       }}>{title}</h3>
       {hint && (
-        <p style={{ margin: '-4px 0 12px', fontSize: 11.5, color: '#9ca3af', lineHeight: 1.4 }}>{hint}</p>
+        <p style={{ margin: '-4px 0 12px', fontSize: 11.5, color: '#9a9a94', lineHeight: 1.4 }}>{hint}</p>
       )}
       {children}
     </div>
@@ -2452,7 +2452,7 @@ function ColorRow({ label, value, onChange, placeholder }: {
           type="color"
           value={colorForPicker}
           onChange={(e) => onChange(e.target.value)}
-          style={{ width: 36, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, padding: 0, background: 'none', cursor: 'pointer' }}
+          style={{ width: 36, height: 28, border: '1px solid #e2e1db', borderRadius: 6, padding: 0, background: 'none', cursor: 'pointer' }}
         />
         <input
           type="text"
@@ -2473,7 +2473,7 @@ function Segmented<T extends string>({ value, options, onChange }: {
 }) {
   return (
     <div style={{
-      display: 'inline-flex', border: '1px solid #e5e7eb', borderRadius: 8,
+      display: 'inline-flex', border: '1px solid #e2e1db', borderRadius: 8,
       background: '#fff', padding: 2, gap: 0,
     }}>
       {options.map((opt) => {
@@ -2485,8 +2485,8 @@ function Segmented<T extends string>({ value, options, onChange }: {
             onClick={() => onChange(opt.v)}
             style={{
               padding: '5px 10px', border: 0, borderRadius: 6,
-              background: active ? '#111827' : 'transparent',
-              color: active ? '#fff' : '#374151',
+              background: active ? '#12140f' : 'transparent',
+              color: active ? '#fff' : '#71716b',
               fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
             }}
           >
@@ -2515,7 +2515,7 @@ function SliderRow({ label, value, min, max, step, unit, onChange }: {
         min={min} max={max} step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: '#111827' }}
+        style={{ width: '100%', accentColor: '#12140f' }}
       />
     </div>
   );

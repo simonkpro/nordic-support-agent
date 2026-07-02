@@ -108,6 +108,12 @@
 /* instead of the cramped horizontal stepper, and a pinned bottom      */
 /* action bar so the primary CTA is always in reach.                   */
 /* ------------------------------------------------------------------ */
+/* On-brand form controls inside the dashboard shell (not the Shopify app). */
+.resp-shell input[type='checkbox'],
+.resp-shell input[type='radio'] {
+  accent-color: #0e3d2a;
+}
+
 .onb-progress { display: none; }
 .onb-progress-fill {
   height: 100%;
