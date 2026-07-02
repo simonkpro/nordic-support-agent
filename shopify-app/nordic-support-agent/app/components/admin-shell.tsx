@@ -220,6 +220,7 @@ export function PageHeader({
     >
       <div>
         <h1
+          className="resp-h1"
           style={{
             fontSize: 28,
             fontWeight: 500,

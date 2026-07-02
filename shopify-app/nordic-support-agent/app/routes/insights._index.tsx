@@ -449,6 +449,7 @@ function ActivityHeatmapCard({ heatmap }: { heatmap: ActivityHeatmap }) {
   return (
     <Card>
       <SectionLabel>När kunderna chattar</SectionLabel>
+      <div className="resp-chart-scroll">
       <div
         style={{
           display: 'grid',
@@ -499,6 +500,7 @@ function ActivityHeatmapCard({ heatmap }: { heatmap: ActivityHeatmap }) {
             })}
           </>
         ))}
+      </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 11, color: SHELL_TOKENS.muted }}>
         <span>{peakLabel ?? 'Inga konversationer ännu'}</span>

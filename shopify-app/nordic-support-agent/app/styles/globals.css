@@ -33,7 +33,7 @@
 /* Inline styles win over stylesheets, so these overrides use         */
 /* !important inside a media query, keyed on resp-* utility classes.  */
 /* ------------------------------------------------------------------ */
-.resp-scroll-x { overflow-x: auto; }
+.resp-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 /* Grid/flex items default to min-width:auto, which lets nowrap/table
  * content blow out the page width instead of scrolling inside. */
 .resp-two-col > *, .resp-shell > main, .resp-stats > * { min-width: 0; }
@@ -41,25 +41,51 @@
 
 @media (max-width: 860px) {
   .resp-two-col { grid-template-columns: 1fr !important; }
-  .resp-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .resp-stats { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
 
-  /* AdminShell: 240px sidebar grid collapses to a stacked top bar. */
+  /* ---- AdminShell: 240px sidebar → sticky top bar with a scrolling
+     tab strip. The aside is a column: [brand row] [nav strip] and the
+     account block is pulled up next to the brand instead of pinned to
+     the bottom of a full-height rail. ---- */
   .resp-shell { grid-template-columns: 1fr !important; }
   .resp-shell > aside {
-    position: static !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 20;
     height: auto !important;
     border-right: none !important;
     border-bottom: 1px solid #ece6d8;
-    padding: 14px 20px !important;
-    gap: 12px !important;
+    background: #fffdf8;
+    padding: 12px 16px !important;
+    gap: 10px !important;
+    flex-direction: column !important;
   }
+  /* nav becomes a single horizontally-scrolling row of pill tabs, so
+     four+ items never wrap into a ragged block. */
   .resp-shell > aside nav {
     flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -16px;
+    padding: 0 16px 2px;
+    scrollbar-width: none;
+  }
+  .resp-shell > aside nav::-webkit-scrollbar { display: none; }
+  .resp-shell > aside nav a { white-space: nowrap; flex: 0 0 auto; }
+  /* account block: no longer pinned to bottom; compact inline row. */
+  .resp-shell > aside > div:last-child {
+    margin-top: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
     flex-wrap: wrap;
+    align-items: center;
     gap: 4px 14px !important;
   }
+  .resp-shell > aside > div:last-child > div { margin-bottom: 0 !important; }
 
-  .resp-main { padding: 20px 16px 60px !important; }
+  .resp-main { padding: 20px 16px 64px !important; }
   .resp-header {
     flex-wrap: wrap;
     height: auto !important;
@@ -67,4 +93,12 @@
     gap: 6px 16px;
     padding: 12px 16px !important;
   }
+
+  /* Dense charts (hour-of-day heatmap, per-day bars) stay legible by
+     scrolling inside their card rather than crushing to 8px columns. */
+  .resp-chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .resp-chart-scroll > * { min-width: 520px; }
+
+  /* Oversized page headings tighten up on small screens. */
+  .resp-h1 { font-size: 22px !important; }
 }

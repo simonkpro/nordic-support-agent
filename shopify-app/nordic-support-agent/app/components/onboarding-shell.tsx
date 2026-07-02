@@ -147,6 +147,7 @@ export function OnboardingShell({
             Steg {stepNumber} · av {totalSteps}
           </div>
           <h1
+            className="resp-h1"
             style={{
               margin: 0,
               fontSize: 30,
