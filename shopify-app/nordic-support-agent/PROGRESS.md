@@ -74,7 +74,7 @@ generic invite-only response (new tables exist → migration applied).
 
 1. Set up the `hej@vitrio.se` mailbox (or change `CONTACT_EMAIL` in
    `app/routes/_index/route.tsx`).
-2. RESEND: production sends magic links via Resend — confirm the from-address
+2. RESEND: RESEND_API_KEY + RESEND_FROM_ADDRESS confirmed present in prod env (2026-07-02). Still confirm the from-address
    domain (`RESEND_FROM_ADDRESS`) is verified for vitrio.se so invites don't
    land in spam.
 3. Before real traffic: Redis/KV-backed rate limiting (in-memory bucket resets
