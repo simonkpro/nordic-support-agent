@@ -49,25 +49,23 @@ export const links: LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
   {
     rel: 'stylesheet',
-    href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap',
+    href: 'https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&display=swap',
   },
 ];
 
 /* Palette mirrors SHELL_TOKENS in admin-shell.tsx. */
 const T = {
-  bg: '#f7f4ee',
-  card: '#fffdf8',
-  ink: '#1f2823',
-  muted: '#6b6359',
-  line: '#ece6d8',
-  tan: '#c8a87a',
-  forest: '#2c4a3e',
-  green: '#5b8a72',
+  bg: '#f7f6f3',
+  card: '#ffffff',
+  ink: '#12140f',
+  muted: '#71716b',
+  line: '#e2e1db',
+  tan: '#71716b',
+  forest: '#0e3d2a',
+  green: '#0e3d2a',
   red: '#a3452e',
 };
-const SANS = '"Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-const SERIF = '"Fraunces", Georgia, serif';
-const MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+const SANS = '"Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export default function SignIn() {
   const data = useActionData<typeof action>();
@@ -91,15 +89,17 @@ export default function SignIn() {
       <Link
         to="/"
         style={{
-          fontFamily: SERIF,
-          fontSize: 26,
-          fontWeight: 560,
+          fontFamily: SANS,
+          fontSize: 17,
+          fontWeight: 500,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
           color: T.ink,
           textDecoration: 'none',
-          marginBottom: 28,
+          marginBottom: 30,
         }}
       >
-        Vitrio<span style={{ color: T.tan }}>.</span>
+        Vitrio
       </Link>
       <div
         style={{
@@ -114,17 +114,14 @@ export default function SignIn() {
       >
         <div
           style={{
-            fontFamily: MONO,
-            fontSize: 10,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: T.forest,
+            fontSize: 13,
+            color: T.muted,
             marginBottom: 10,
           }}
         >
           Kunddashboard
         </div>
-        <h1 style={{ fontFamily: SERIF, fontWeight: 560, fontSize: 24, margin: '0 0 8px' }}>
+        <h1 style={{ fontWeight: 500, fontSize: 24, letterSpacing: '-0.01em', margin: '0 0 8px' }}>
           Logga in
         </h1>
         <p style={{ margin: '0 0 22px', color: T.muted, lineHeight: 1.55, fontSize: 14 }}>
@@ -140,7 +137,7 @@ export default function SignIn() {
               margin: 0,
               padding: '12px 14px',
               background: T.bg,
-              border: `1px dashed ${T.tan}`,
+              border: `1px solid ${T.line}`,
               borderRadius: 8,
             }}
           >
@@ -179,10 +176,10 @@ export default function SignIn() {
               disabled={submitting}
               style={{
                 background: T.forest,
-                color: '#fdfcf7',
+                color: '#fff',
                 border: 'none',
                 padding: '12px 14px',
-                borderRadius: 8,
+                borderRadius: 999,
                 fontSize: 15,
                 fontWeight: 500,
                 fontFamily: SANS,

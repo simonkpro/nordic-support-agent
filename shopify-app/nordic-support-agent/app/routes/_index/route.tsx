@@ -24,13 +24,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const meta: MetaFunction = () => [
-  { title: 'Vitrio — AI-kundtjänst som aldrig hittar på' },
+  { title: 'Vitrio — Kundservice, utan gissningar' },
   {
     name: 'description',
     content:
-      'En rad JavaScript på din sajt. Vitrio svarar på kundernas frågor utifrån dina riktiga policyer och orderdata — och lämnar över till en människa när den inte borde gissa.',
+      'AI-kundtjänst för e-handel som bara svarar på det den kan belägga i din egen data. En rad kod att installera. Mänsklig överlämning när det behövs.',
   },
-  { property: 'og:title', content: 'Vitrio — AI-kundtjänst som aldrig hittar på' },
+  { property: 'og:title', content: 'Vitrio — Kundservice, utan gissningar' },
   {
     property: 'og:description',
     content:
@@ -43,303 +43,328 @@ export const links: LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
   {
     rel: 'stylesheet',
-    href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,420;9..144,560&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap',
+    href: 'https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&display=swap',
   },
 ];
 
-/* Palette mirrors SHELL_TOKENS in admin-shell.tsx so landing → dashboard
- * feels like one product. */
 const CSS = `
   .vt-root {
-    --bg: #f7f4ee;
-    --card: #fffdf8;
-    --ink: #1f2823;
-    --muted: #6b6359;
-    --line: #ece6d8;
-    --line-dash: #dcd3bc;
-    --tan: #c8a87a;
-    --forest: #2c4a3e;
-    --forest-deep: #22392f;
-    --code-bg: #0f1217;
-    --code-ink: #e6e2d6;
-    --sans: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --serif: "Fraunces", Georgia, serif;
-    --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --paper: #f7f6f3;
+    --panel: #ededea;
+    --ink: #12140f;
+    --gray: #71716b;
+    --hairline: #e2e1db;
+    --green: #0e3d2a;
+    --green-deep: #0a2f21;
+    --sans: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-family: var(--sans);
-    background: var(--bg);
+    background: var(--paper);
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
-    line-height: 1.55;
+    line-height: 1.5;
     min-height: 100vh;
     overflow-x: clip;
+    font-size: 16px;
   }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; }
-  .vt-wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+  .vt-wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px; }
 
-  /* ------- topbar ------- */
-  .vt-topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 22px 0;
+  /* ------- nav ------- */
+  .vt-nav {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 20px 0;
   }
+  .vt-nav-l { display: flex; gap: 26px; }
+  .vt-nav-l a, .vt-nav-r a.vt-plain {
+    font-size: 14px; color: var(--ink); text-decoration: none;
+  }
+  .vt-nav-l a:hover, .vt-nav-r a.vt-plain:hover { color: var(--gray); }
   .vt-wordmark {
-    font-family: var(--serif); font-size: 24px; font-weight: 560;
-    letter-spacing: -0.01em; color: var(--ink); text-decoration: none;
+    font-size: 19px; font-weight: 500; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--ink); text-decoration: none;
+    justify-self: center;
   }
-  .vt-wordmark span { color: var(--tan); }
-  .vt-topnav { display: flex; align-items: center; gap: 22px; }
-  .vt-topnav a { font-size: 14px; color: var(--muted); text-decoration: none; }
-  .vt-topnav a:hover { color: var(--ink); }
-  .vt-btn {
-    display: inline-block; text-decoration: none; font-weight: 500;
-    font-size: 15px; padding: 12px 22px; border-radius: 8px;
-    transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  .vt-nav-r { display: flex; gap: 24px; align-items: center; justify-self: end; }
+
+  /* ------- buttons ------- */
+  .vt-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--green); color: #fff !important;
+    border-radius: 999px; padding: 10px 8px 10px 20px;
+    font-size: 14px; font-weight: 500; text-decoration: none;
+    transition: background 140ms ease;
   }
-  .vt-btn:hover { transform: translateY(-1px); }
-  .vt-btn-primary { background: var(--forest); color: #fdfcf7 !important; box-shadow: 0 1px 2px rgba(31,40,35,0.18); }
-  .vt-btn-primary:hover { background: var(--forest-deep); box-shadow: 0 4px 14px rgba(44,74,62,0.25); }
-  .vt-btn-ghost { color: var(--ink); border: 1px solid var(--line-dash); background: transparent; }
-  .vt-btn-ghost:hover { border-color: var(--tan); }
-  .vt-btn-small { font-size: 14px; padding: 9px 16px; }
+  .vt-pill:hover { background: var(--green-deep); }
+  .vt-pill .vt-arr {
+    width: 26px; height: 26px; border-radius: 50%; background: #fff;
+    color: var(--green); display: inline-flex; align-items: center;
+    justify-content: center; font-size: 13px;
+  }
+  .vt-pill-lg { padding: 13px 10px 13px 26px; font-size: 15px; }
+  .vt-pill-lg .vt-arr { width: 30px; height: 30px; }
+  .vt-pill-inverse { background: #fff; color: var(--green) !important; }
+  .vt-pill-inverse:hover { background: #f0efe9; }
+  .vt-pill-inverse .vt-arr { background: var(--green); color: #fff; }
 
   /* ------- hero ------- */
-  .vt-hero {
-    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px;
-    align-items: center; padding: 72px 0 84px; position: relative;
-  }
-  .vt-hero > div { min-width: 0; }
-  .vt-hero::before {
-    content: ""; position: absolute; inset: -80px -40vw 0;
-    background: radial-gradient(900px 420px at 30% 0%, rgba(200,168,122,0.13), transparent 70%);
-    pointer-events: none;
-  }
-  .vt-kicker {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--forest); margin: 0 0 18px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .vt-kicker::before { content: ""; width: 22px; height: 1px; background: var(--tan); }
+  .vt-hero { text-align: center; padding: 110px 0 72px; }
   .vt-h1 {
-    font-family: var(--serif); font-weight: 420; font-size: clamp(38px, 5.2vw, 58px);
-    line-height: 1.06; letter-spacing: -0.015em; margin: 0 0 20px;
+    font-weight: 400; font-size: clamp(42px, 6.4vw, 76px);
+    line-height: 1.04; letter-spacing: -0.032em; margin: 0 auto 22px;
+    max-width: 16ch;
   }
-  .vt-h1 em { font-style: italic; color: var(--forest); }
-  .vt-lede { font-size: 17px; color: var(--muted); max-width: 480px; margin: 0 0 30px; }
-  .vt-cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-  .vt-snippet-label {
-    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--muted); margin: 40px 0 8px;
+  .vt-lede {
+    font-size: 17px; color: var(--gray); max-width: 520px;
+    margin: 0 auto 34px;
   }
+  .vt-hero-cta { display: flex; gap: 26px; justify-content: center; align-items: center; }
+  .vt-hero-cta .vt-signin { font-size: 14px; color: var(--ink); text-decoration: none; }
+  .vt-hero-cta .vt-signin:hover { color: var(--gray); }
+
+  /* ------- product canvas ------- */
+  .vt-canvas {
+    background: var(--panel); border-radius: 20px;
+    padding: clamp(28px, 5vw, 64px);
+    display: grid; grid-template-columns: 1fr 400px; gap: clamp(28px, 5vw, 72px);
+    align-items: center; margin-bottom: 40px;
+  }
+  .vt-canvas > div { min-width: 0; }
+  .vt-canvas-label { font-size: 13px; color: var(--gray); margin: 0 0 14px; }
+  .vt-canvas h2 {
+    font-weight: 400; font-size: clamp(24px, 2.6vw, 32px);
+    letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 14px;
+  }
+  .vt-canvas p.vt-body { font-size: 15px; color: var(--gray); margin: 0 0 28px; max-width: 44ch; }
   .vt-snippet {
-    background: var(--code-bg); color: var(--code-ink); border-radius: 10px;
-    font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    background: #fff; border: 1px solid var(--hairline); border-radius: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px; line-height: 1.7; color: var(--ink);
     padding: 14px 18px; overflow-wrap: break-word;
-    box-shadow: 0 12px 32px -18px rgba(15,18,23,0.5);
   }
-  .vt-snippet .t { color: #9bb4d4; } .vt-snippet .a { color: #c8a87a; }
+  .vt-snippet .c { color: var(--gray); }
 
   /* ------- chat mock ------- */
   .vt-chat {
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-    box-shadow: 0 24px 60px -30px rgba(31,40,35,0.35);
-    overflow: hidden; max-width: 400px; margin-left: auto; position: relative;
+    background: #fff; border: 1px solid var(--hairline); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 20px 50px -36px rgba(18,20,15,0.4);
   }
   .vt-chat-head {
-    background: var(--forest); color: #fdfcf7; padding: 14px 18px;
-    display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500;
+    padding: 13px 18px; font-size: 13.5px; font-weight: 500;
+    border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: center; gap: 8px;
   }
-  .vt-chat-dot { width: 8px; height: 8px; border-radius: 50%; background: #8fc7a6; }
-  .vt-chat-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-  .vt-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
-  .vt-msg-user { align-self: flex-end; background: var(--forest); color: #fdfcf7; border-bottom-right-radius: 4px; }
-  .vt-msg-bot { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .vt-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .vt-chat-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .vt-msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+  .vt-msg-user { align-self: flex-end; background: var(--green); color: #fff; border-bottom-right-radius: 4px; }
+  .vt-msg-bot { align-self: flex-start; background: var(--paper); border: 1px solid var(--hairline); border-bottom-left-radius: 4px; }
   .vt-msg-src {
-    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--muted); margin-top: 8px;
-    padding-top: 7px; border-top: 1px dashed var(--line-dash);
+    font-size: 11px; color: var(--gray); margin-top: 8px; padding-top: 7px;
+    border-top: 1px solid var(--hairline);
   }
   .vt-chat-foot {
-    border-top: 1px solid var(--line); padding: 12px 18px; font-size: 13px;
-    color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--hairline); padding: 11px 18px;
+    font-size: 12.5px; color: var(--gray);
   }
-  .vt-chat-foot .vt-mono-tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; }
 
   /* ------- sections ------- */
-  .vt-section { padding: 72px 0; border-top: 1px solid var(--line); }
-  .vt-h2 {
-    font-family: var(--serif); font-weight: 420; font-size: clamp(28px, 3.4vw, 38px);
-    letter-spacing: -0.01em; line-height: 1.15; margin: 0 0 12px;
+  .vt-label {
+    font-size: 13px; color: var(--gray); margin: 0 0 40px;
   }
-  .vt-section-lede { color: var(--muted); font-size: 16px; max-width: 560px; margin: 0 0 44px; }
-
-  .vt-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; counter-reset: step; }
-  .vt-step {
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-    padding: 26px 24px; position: relative; counter-increment: step;
+  .vt-section { padding: 96px 0 0; }
+  .vt-statement {
+    text-align: center; padding: 130px 0;
+    font-weight: 400; font-size: clamp(30px, 4vw, 48px);
+    letter-spacing: -0.025em; line-height: 1.12; margin: 0;
   }
-  .vt-step::before {
-    content: "0" counter(step);
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--tan);
-    display: block; margin-bottom: 14px;
+  .vt-statement span { color: var(--gray); }
+
+  .vt-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .vt-step { border-top: 1px solid var(--ink); padding-top: 18px; }
+  .vt-step .vt-num { font-size: 13px; color: var(--gray); display: block; margin-bottom: 26px; }
+  .vt-step h3 { font-size: 17px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .vt-step p { font-size: 14.5px; color: var(--gray); margin: 0; }
+
+  .vt-features {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0 64px; border-top: 1px solid var(--hairline);
   }
-  .vt-step h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
-  .vt-step p { font-size: 14px; color: var(--muted); margin: 0; }
+  .vt-feature { padding: 34px 0; border-bottom: 1px solid var(--hairline); }
+  .vt-feature h3 { font-size: 17px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .vt-feature p { font-size: 14.5px; color: var(--gray); margin: 0; max-width: 46ch; }
 
-  .vt-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  .vt-feature { background: var(--card); padding: 30px 28px; transition: background 150ms ease; }
-  .vt-feature:hover { background: #fffef9; }
-  .vt-feature .vt-f-label {
-    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--forest); margin-bottom: 12px;
+  /* ------- CTA panel ------- */
+  .vt-cta-panel {
+    background: var(--green); color: #fff; border-radius: 20px;
+    padding: clamp(48px, 7vw, 96px) clamp(28px, 5vw, 80px);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 30px;
+    margin: 110px 0 0;
   }
-  .vt-feature h3 { font-size: 17px; font-weight: 600; margin: 0 0 8px; }
-  .vt-feature p { font-size: 14px; color: var(--muted); margin: 0; }
-
-  .vt-trust {
-    display: flex; gap: 36px; flex-wrap: wrap; justify-content: center;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--muted);
-    border-top: 1px dashed var(--line-dash); border-bottom: 1px dashed var(--line-dash);
-    padding: 22px 0; margin: 0;
+  .vt-cta-panel h2 {
+    font-weight: 400; font-size: clamp(28px, 3.6vw, 44px);
+    letter-spacing: -0.025em; line-height: 1.12; margin: 0; max-width: 22ch;
   }
-  .vt-trust li { list-style: none; display: flex; align-items: center; gap: 8px; }
-  .vt-trust li::before { content: "●"; color: var(--tan); font-size: 7px; }
+  .vt-cta-panel p { font-size: 15px; color: rgba(255,255,255,0.72); margin: -12px 0 0; max-width: 52ch; }
 
-  .vt-final { text-align: center; padding: 88px 0; }
-  .vt-final .vt-h2 { margin-bottom: 14px; }
-  .vt-final p { color: var(--muted); max-width: 460px; margin: 0 auto 30px; }
-
+  /* ------- footer ------- */
   .vt-footer {
-    border-top: 1px solid var(--line); padding: 28px 0 40px;
+    padding: 34px 0 44px; margin-top: 28px;
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 13px; color: var(--muted); flex-wrap: wrap; gap: 12px;
+    font-size: 13px; color: var(--gray); flex-wrap: wrap; gap: 12px;
   }
-  .vt-footer a { color: var(--muted); text-decoration: none; margin-left: 20px; }
+  .vt-footer a { color: var(--gray); text-decoration: none; margin-left: 22px; }
   .vt-footer a:hover { color: var(--ink); }
 
-  /* ------- motion ------- */
-  @keyframes vt-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  .vt-rise { animation: vt-rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  .vt-d1 { animation-delay: 60ms; } .vt-d2 { animation-delay: 140ms; }
-  .vt-d3 { animation-delay: 220ms; } .vt-d4 { animation-delay: 320ms; }
-  @media (prefers-reduced-motion: reduce) { .vt-rise { animation: none; } }
-
-  @media (max-width: 860px) {
-    .vt-hero { grid-template-columns: 1fr; gap: 44px; padding: 44px 0 60px; }
-    .vt-chat { margin-left: 0; }
-    .vt-steps { grid-template-columns: 1fr; }
-    .vt-features { grid-template-columns: 1fr; }
-    .vt-section { padding: 52px 0; }
+  @media (max-width: 900px) {
+    .vt-nav { grid-template-columns: auto 1fr; }
+    .vt-nav-l { display: none; }
+    .vt-wordmark { justify-self: start; }
+    .vt-hero { padding: 64px 0 48px; }
+    .vt-canvas { grid-template-columns: 1fr; }
+    .vt-steps { grid-template-columns: 1fr; gap: 28px; }
+    .vt-features { grid-template-columns: 1fr; gap: 0; }
+    .vt-statement { padding: 84px 0; }
+    .vt-section { padding: 64px 0 0; }
   }
 `;
 
 const CONTACT_EMAIL = 'hej@vitrio.se';
+
+function Pill({
+  href,
+  children,
+  large,
+  inverse,
+}: {
+  href: string;
+  children: React.ReactNode;
+  large?: boolean;
+  inverse?: boolean;
+}) {
+  const cls = ['vt-pill', large ? 'vt-pill-lg' : '', inverse ? 'vt-pill-inverse' : '']
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <a className={cls} href={href}>
+      {children}
+      <span className="vt-arr" aria-hidden="true">
+        →
+      </span>
+    </a>
+  );
+}
 
 export default function Landing() {
   return (
     <div className="vt-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="vt-wrap">
-        <header className="vt-topbar">
-          <Link to="/" className="vt-wordmark">
-            Vitrio<span>.</span>
-          </Link>
-          <nav className="vt-topnav">
+        <header className="vt-nav">
+          <nav className="vt-nav-l">
             <a href="#sa-funkar-det">Så funkar det</a>
-            <Link to="/signin" className="vt-btn vt-btn-ghost vt-btn-small">
+            <a href={`mailto:${CONTACT_EMAIL}`}>Kontakt</a>
+          </nav>
+          <Link to="/" className="vt-wordmark">
+            Vitrio
+          </Link>
+          <div className="vt-nav-r">
+            <Link to="/signin" className="vt-plain">
               Logga in
             </Link>
-          </nav>
+            <Pill href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>Boka demo</Pill>
+          </div>
         </header>
 
         {/* ---------- hero ---------- */}
         <section className="vt-hero">
+          <h1 className="vt-h1">Kundservice, utan gissningar.</h1>
+          <p className="vt-lede">
+            Vitrio svarar på dina kunders frågor dygnet runt — utifrån dina
+            riktiga policyer, ordrar och leveransdata. Aldrig utifrån en
+            gissning.
+          </p>
+          <div className="vt-hero-cta">
+            <Pill large href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>
+              Boka en demo
+            </Pill>
+            <Link to="/signin" className="vt-signin">
+              Logga in
+            </Link>
+          </div>
+        </section>
+
+        {/* ---------- product canvas ---------- */}
+        <section className="vt-canvas">
           <div>
-            <p className="vt-kicker vt-rise">AI-kundtjänst för e-handel</p>
-            <h1 className="vt-h1 vt-rise vt-d1">
-              Kundtjänst som <em>aldrig hittar på</em> svar.
-            </h1>
-            <p className="vt-lede vt-rise vt-d2">
-              En rad JavaScript på din sajt. Vitrio svarar på kundernas frågor
-              dygnet runt — utifrån dina riktiga policyer, ordrar och
-              leveransdata. När den inte borde gissa lämnar den över till en
-              människa.
+            <p className="vt-canvas-label">Installation</p>
+            <h2>En rad kod. Inget mer.</h2>
+            <p className="vt-body">
+              Fungerar på Shopify, WordPress och vanlig HTML. Ingen
+              build-process, ingen app att installera — klistra in raden före
+              stängande body-taggen så är widgeten live.
             </p>
-            <div className="vt-cta-row vt-rise vt-d3">
-              <a className="vt-btn vt-btn-primary" href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>
-                Boka en demo
-              </a>
-              <Link className="vt-btn vt-btn-ghost" to="/signin">
-                Logga in
-              </Link>
-            </div>
-            <p className="vt-snippet-label vt-rise vt-d4">
-              Hela installationen — en rad före &lt;/body&gt;
-            </p>
-            <div className="vt-snippet vt-rise vt-d4">
-              <span className="t">&lt;script </span>
-              <span className="a">src</span>=&quot;https://vitrio.se/widget.js&quot;{' '}
-              <span className="a">data-assistant</span>=&quot;…&quot; async defer
-              <span className="t">&gt;&lt;/script&gt;</span>
+            <div className="vt-snippet">
+              <span className="c">&lt;!-- före &lt;/body&gt; --&gt;</span>
+              <br />
+              &lt;script src=&quot;https://vitrio.se/widget.js&quot;{' '}
+              data-assistant=&quot;…&quot; async defer&gt;&lt;/script&gt;
             </div>
           </div>
-
-          <div className="vt-chat vt-rise vt-d2" aria-hidden="true">
+          <div className="vt-chat" aria-hidden="true">
             <div className="vt-chat-head">
               <span className="vt-chat-dot" /> Kundservice
             </div>
             <div className="vt-chat-body">
-              <div className="vt-msg vt-msg-user">
-                Hej! Var är min order? #10382
-              </div>
+              <div className="vt-msg vt-msg-user">Hej! Var är min order? #10382</div>
               <div className="vt-msg vt-msg-bot">
                 Hej Anna! Din order skickades igår med PostNord och beräknas
-                komma <strong>torsdag 4/7</strong>. Spårningen visar att paketet
-                är i Stockholm just nu.
+                komma torsdag 4/7.
                 <div className="vt-msg-src">Källa: ordersystem · leveranspolicy</div>
               </div>
-              <div className="vt-msg vt-msg-user">
-                Kan jag ändra leveransadressen?
-              </div>
+              <div className="vt-msg vt-msg-user">Kan jag ändra leveransadressen?</div>
               <div className="vt-msg vt-msg-bot">
                 Det vill jag inte chansa på — jag kopplar in en kollega som kan
                 hjälpa dig direkt.
                 <div className="vt-msg-src">Överlämnad till människa · 14:02</div>
               </div>
             </div>
-            <div className="vt-chat-foot">
-              <span>Skriv ett meddelande …</span>
-              <span className="vt-mono-tag">Vitrio</span>
-            </div>
+            <div className="vt-chat-foot">Skriv ett meddelande …</div>
           </div>
         </section>
 
+        {/* ---------- statement ---------- */}
+        <p className="vt-statement">
+          Varje kund. Varje fråga.
+          <br />
+          <span>Alltid belagt i din egen data.</span>
+        </p>
+
         {/* ---------- how it works ---------- */}
-        <section className="vt-section" id="sa-funkar-det">
-          <h2 className="vt-h2">Igång på en dag. Inte ett kvartal.</h2>
-          <p className="vt-section-lede">
-            Vi sätter upp allt åt dig — du klistrar in en rad kod och följer
-            resultatet i din dashboard.
-          </p>
+        <section className="vt-section" id="sa-funkar-det" style={{ paddingTop: 0 }}>
+          <p className="vt-label">Så funkar det</p>
           <div className="vt-steps">
             <div className="vt-step">
+              <span className="vt-num">01</span>
               <h3>Vi bygger din kunskapsbas</h3>
               <p>
-                Policyer, FAQ, produktsidor — vi läser in din sajt och dina
-                dokument, och kopplar på orderdata där det finns.
+                Policyer, FAQ och produktsidor läses in från din sajt och dina
+                dokument. Orderdata kopplas på där det finns.
               </p>
             </div>
             <div className="vt-step">
+              <span className="vt-num">02</span>
               <h3>Du klistrar in en rad kod</h3>
               <p>
-                Fungerar på Shopify, WordPress och vanlig HTML. Ingen
-                build-process, ingen app att installera.
+                Shopify, WordPress eller vanlig HTML. Widgeten är live så fort
+                sidan laddats om.
               </p>
             </div>
             <div className="vt-step">
-              <h3>Boten svarar — du ser allt</h3>
+              <span className="vt-num">03</span>
+              <h3>Du ser allt i din dashboard</h3>
               <p>
-                Varje konversation loggas i din dashboard: lösta ärenden,
-                eskaleringar och luckor i kunskapsbasen.
+                Varje konversation loggas: lösta ärenden, eskaleringar och
+                luckor i kunskapsbasen.
               </p>
             </div>
           </div>
@@ -347,14 +372,9 @@ export default function Landing() {
 
         {/* ---------- features ---------- */}
         <section className="vt-section">
-          <h2 className="vt-h2">Byggd för att vara pålitlig, inte imponerande.</h2>
-          <p className="vt-section-lede">
-            De flesta AI-chattbotar svarar på allt. Vitrio svarar bara på det
-            den kan belägga i din egen data.
-          </p>
+          <p className="vt-label">Byggd för att vara pålitlig</p>
           <div className="vt-features">
             <div className="vt-feature">
-              <div className="vt-f-label">Grundad i din data</div>
               <h3>Citerar det den ser — inte det den tror</h3>
               <p>
                 Svaren bygger på dina policyer, din orderdata och din
@@ -362,15 +382,13 @@ export default function Landing() {
               </p>
             </div>
             <div className="vt-feature">
-              <div className="vt-f-label">Mänsklig överlämning</div>
               <h3>Vet när den ska släppa taget</h3>
               <p>
-                Känsliga ärenden, arga kunder och allt utanför kunskapsbasen
-                eskaleras till din inkorg med en färdig sammanfattning.
+                Känsliga ärenden och allt utanför kunskapsbasen eskaleras till
+                din inkorg med en färdig sammanfattning.
               </p>
             </div>
             <div className="vt-feature">
-              <div className="vt-f-label">Insikter</div>
               <h3>Ser vad kunderna faktiskt frågar om</h3>
               <p>
                 Dashboarden visar ämnen, lösningsgrad och kunskapsluckor — så
@@ -378,7 +396,6 @@ export default function Landing() {
               </p>
             </div>
             <div className="vt-feature">
-              <div className="vt-f-label">Integritet</div>
               <h3>GDPR utan fotnoter</h3>
               <p>
                 Data lagras inom EU. Ingen träning på dina kunders
@@ -389,24 +406,16 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ---------- trust strip ---------- */}
-        <ul className="vt-trust">
-          <li>Svenskt &amp; flerspråkigt</li>
-          <li>Data inom EU</li>
-          <li>Shopify · WordPress · HTML</li>
-          <li>Ingen träning på din data</li>
-        </ul>
-
-        {/* ---------- final CTA ---------- */}
-        <section className="vt-final">
-          <h2 className="vt-h2">Se den svara på dina egna kundfrågor.</h2>
+        {/* ---------- CTA panel ---------- */}
+        <section className="vt-cta-panel">
+          <h2>Se den svara på dina egna kundfrågor.</h2>
           <p>
             Vi sätter upp en pilot mot din riktiga kunskapsbas — du ser exakt
             hur boten hade svarat dina kunder, innan den möter en enda.
           </p>
-          <a className="vt-btn vt-btn-primary" href={`mailto:${CONTACT_EMAIL}?subject=Pilot%20med%20Vitrio`}>
+          <Pill large inverse href={`mailto:${CONTACT_EMAIL}?subject=Pilot%20med%20Vitrio`}>
             Boka en demo
-          </a>
+          </Pill>
         </section>
 
         <footer className="vt-footer">
