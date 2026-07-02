@@ -1,24 +1,18 @@
 import type { LoaderFunctionArgs, MetaFunction, LinksFunction } from 'react-router';
 import { redirect, Link } from 'react-router';
-import { getSessionFromRequest } from '../../lib/workspace-auth';
 
 /**
- * Public landing (vitrio.se). Three branches:
- *  - Shopify install flow lands here with ?shop=… → redirect into /app
- *    (Shopify embedded path stays unchanged).
- *  - Already signed-in user → their dashboard (or workspace picker / admin).
- *  - Everyone else → marketing page with sign-in CTA.
+ * Public landing (vitrio.se). The dashboard lives on its own subdomain
+ * (dashboard.vitrio.se), so the marketing root always shows the lander —
+ * we deliberately do NOT redirect signed-in visitors away from it. Only
+ * the Shopify install flow (?shop=…) is special-cased into /app. Signed-in
+ * users reach their dashboard via the "Logga in" CTA (which points at the
+ * dashboard subdomain).
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   if (url.searchParams.get('shop')) {
     throw redirect(`/app?${url.searchParams.toString()}`);
-  }
-  const session = await getSessionFromRequest(request);
-  if (session) {
-    if (session.activeWorkspaceId) throw redirect('/preview/chat');
-    if (session.memberships.length > 0) throw redirect('/workspaces');
-    if (session.user.isPlatformAdmin) throw redirect('/admin');
   }
   return null;
 };
