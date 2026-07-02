@@ -6,6 +6,11 @@ five parallel focused reviews (tenant isolation, auth/session, widget
 tokens & public endpoints, injection/SSRF/uploads, admin/headers/secrets),
 with the critical/high findings verified by hand against the running app.
 
+**A second round** (adversarial re-review of the fixes + DSAR, agent/LLM
+tool-calling, and the Shopify path) is documented at the bottom under
+"Round 2". It confirmed all four round-1 fixes hold with no bypass, fixed
+one more PII issue (tier-2 tracking/refund IDOR), and logged new findings.
+
 ## Summary
 
 | # | Severity | Issue | Status |
@@ -195,3 +200,73 @@ is logged, not the individual changes). The **cron secret** is compared with
   wildcard bug (auth is bearer-token, not cookies).
 - No hardcoded secrets; `.env` is gitignored and not committed; errors don't
   leak stack traces to clients.
+
+---
+
+## Round 2 — adversarial re-review (2026-07-02)
+
+Four fresh agents: (1) adversarially verify the four round-1 fixes, (2) DSAR
+& data-deletion, (3) the AI agent / LLM tool-calling layer, (4) the
+Shopify-embedded path vs. standalone isolation.
+
+### Round-1 fixes: all confirmed solid
+- **IDOR fix** — every id-based mutation in `/preview/chat` is guarded; no
+  other caller passes a request id unguarded; no TOCTOU. (One low: `upload-doc`
+  `scopeAssistantId` isn't guarded, but ingest+retrieval are shop-scoped so a
+  mislabeled doc can never surface in another tenant — non-exploitable.)
+- **Verification-bypass fix** — `verifiedEmail` is never sourced from client
+  input on any path; conversations can't be resumed cross-tenant (shop-scoped,
+  UUID ids). Complete.
+- **Suspension fix** — present and correctly ordered on all three public
+  surfaces; dashboard sign-in also blocked for disabled workspaces. (One low:
+  `api.widget-config` still serves cosmetic public config for a disabled shop.)
+- **SSRF fix** — no bypass found across octal/decimal/hex IPv4, IPv6-mapped/
+  compressed, redirects, or alternate fetch paths. `new URL()` normalises
+  encoded IPs to canonical form before the guard, which then blocks them.
+
+### New — fixed this round
+- **HIGH → fixed: Tier-2 `get_tracking` / `get_refund_info` order-ownership
+  IDOR.** They gated only on `Boolean(verifiedEmail)` and took an
+  order_number alone, so a customer verified for their own email could pull
+  any (enumerable) order's carrier tracking / Klarna refund data. Now both
+  call `lookupOrder(order_number, verifiedEmail)` and bail on mismatch, like
+  Tier 1. Latent today (Tier-2 verification email isn't wired) but closed.
+
+### New — open, recommended
+- **HIGH — DSAR link built from `X-Forwarded-Host`/`Host`.** `api.dsar.start`
+  builds the emailed magic-link base URL from request headers, so a poisoned
+  Host delivers a valid single-use DSAR token to an attacker domain (export/
+  erase a victim's data). Build from a trusted `PUBLIC_APP_URL` env instead.
+- **HIGH — Mandatory Shopify GDPR webhooks missing** (`customers/data_request`,
+  `customers/redact`, `shop/redact`). Not registered or handled — App Store
+  compliance + retention gap. Add HMAC-verified handlers.
+- **HIGH (latent) — Commerce adapters are a global singleton.**
+  `getCommerceAdapters(_shop)` ignores `shop` and uses process-wide env creds,
+  so in a shared multi-tenant deploy every widget hits the one configured
+  store — Shop A could read Shop B's orders. Mitigated only because there's a
+  single commerce tenant today. Bind adapters to the token's shop before
+  onboarding a second commerce tenant.
+- **MEDIUM — Tier-2 verification codes are only `console.log`'d**
+  (`ConsoleEmailSender` is the only sender wired for chat). Tier 2 is
+  effectively non-functional for real customers, and codes land in logs. Wire
+  a real Resend sender (mirroring the handoff path) and stop logging codes
+  before enabling Tier 2.
+- **MEDIUM — DSAR erase deletes `VerificationCode` rows across all tenants**
+  (filter is email-only; the table has no shop column). Scope to the tenant.
+- **MEDIUM/LOW — DSAR single-use is a TOCTOU race** (read `completedAt`, act,
+  then write). Use an atomic `updateMany({where:{id,completedAt:null}})` and
+  only act when count===1.
+- **LOW — `getAssistant(id)` takes no `shop`** and relies on every caller
+  checking `=== shop` afterward (the pattern that caused the round-1 IDOR).
+  Give it a mandatory `shop` filter. Same for the shared `shop` namespace
+  (workspace-UUID vs myshopify-domain kept disjoint only by convention) — add
+  a discriminator so collision is structurally impossible.
+- **LOW — cron secret compared with `!==`** — use `constantTimeEq`.
+
+### Confirmed clean (round 2)
+Shopify webhook HMAC verification; OAuth callback / Prisma session storage;
+Shopify-admin ↔ standalone `/admin` isolation (disjoint auth + cookies);
+handoff recipient is tenant-config not attacker-controllable, no SMTP header
+injection; KB retrieval and conversation access are shop-scoped in code; tool
+args are zod-validated server-side; DSAR token HMAC + export scoping + no
+token IDOR; enumeration resistance on DSAR start.
