@@ -37,8 +37,9 @@ export const loader = ({ request }: LoaderFunctionArgs): LoaderData => {
   const site = url.searchParams.get('site');
   const assistantId = url.searchParams.get('a');
   const sig = url.searchParams.get('sig');
+  const exp = Number(url.searchParams.get('exp'));
 
-  if (!site || !assistantId || !sig) {
+  if (!site || !assistantId || !sig || !Number.isFinite(exp)) {
     return { site: null, assistantId: null, error: 'missing_params' };
   }
   if (!UUID_RE.test(assistantId)) {
@@ -56,7 +57,7 @@ export const loader = ({ request }: LoaderFunctionArgs): LoaderData => {
   // Only render links an admin generated (signed over the exact site +
   // assistant), so /demo can't be used to frame arbitrary content under
   // our domain.
-  if (!verifyDemoLink(parsed.toString(), assistantId, sig)) {
+  if (!verifyDemoLink(parsed.toString(), assistantId, exp, sig)) {
     return { site: null, assistantId: null, error: 'bad_signature' };
   }
   return { site: parsed.toString(), assistantId, error: null };
@@ -136,7 +137,7 @@ export default function Demo() {
         src={site}
         title="demo"
         referrerPolicy="no-referrer"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+        sandbox="allow-same-origin allow-scripts allow-popups"
         style={{
           position: 'absolute',
           inset: 0,

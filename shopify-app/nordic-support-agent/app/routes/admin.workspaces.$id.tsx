@@ -10,7 +10,7 @@ import {
 } from '../lib/admin.ts';
 import { listAssistants } from '../lib/assistants.ts';
 import { checkFramable } from '../lib/safe-fetch.ts';
-import { signDemoLink } from '../lib/demo-link.ts';
+import { signDemoLink, demoLinkExpiry } from '../lib/demo-link.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
 
 /**
@@ -102,10 +102,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return { demoError: 'This workspace has no assistant yet.' };
     }
     const framing = await checkFramable(normalized);
-    const sig = signDemoLink(normalized, primary.id);
+    const exp = demoLinkExpiry();
+    const sig = signDemoLink(normalized, primary.id, exp);
     const demoUrl = `${publicBaseUrl(request)}/demo?site=${encodeURIComponent(
       normalized,
-    )}&a=${primary.id}&sig=${sig}`;
+    )}&a=${primary.id}&exp=${exp}&sig=${sig}`;
     return {
       demoUrl,
       demoFramable: framing.framable,

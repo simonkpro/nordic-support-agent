@@ -20,16 +20,30 @@ function secret(): string {
   return s;
 }
 
-export function signDemoLink(site: string, assistantId: string): string {
+/** How long a generated demo link stays valid. */
+export const DEMO_LINK_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
+/** Unix-seconds expiry `TTL` from now. */
+export function demoLinkExpiry(): number {
+  return Math.floor(Date.now() / 1000) + DEMO_LINK_TTL_SECONDS;
+}
+
+export function signDemoLink(site: string, assistantId: string, exp: number): string {
   return createHmac('sha256', secret())
-    .update(`demo.${site}\n${assistantId}`)
+    .update(`demo.${site}\n${assistantId}\n${exp}`)
     .digest('base64url');
 }
 
-export function verifyDemoLink(site: string, assistantId: string, sig: string): boolean {
+export function verifyDemoLink(
+  site: string,
+  assistantId: string,
+  exp: number,
+  sig: string,
+): boolean {
+  if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false; // expired
   let expected: string;
   try {
-    expected = signDemoLink(site, assistantId);
+    expected = signDemoLink(site, assistantId, exp);
   } catch {
     return false;
   }
