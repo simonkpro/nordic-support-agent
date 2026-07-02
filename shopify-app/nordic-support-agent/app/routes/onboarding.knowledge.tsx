@@ -12,6 +12,7 @@ import {
 import { crawlSitemap } from '../lib/sitemap-crawler';
 import { FieldLabel, OnboardingShell, TextInput } from '../components/onboarding-shell';
 import { Card, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
+import { Textarea, font } from '../components/ui';
 
 const ACCEPTED_MIME: Record<string, SupportedMime> = {
   'application/pdf': 'application/pdf',
@@ -331,24 +332,11 @@ function SitemapTab({ initialData }: { initialData: LoaderData }) {
               label="Uteslut sökvägar"
               hint="en per rad · standardvärden ifyllda"
             />
-            <textarea
+            <Textarea
               name="sitemapExcludeGlobs"
               defaultValue={initialData.sitemapExcludeGlobs}
               rows={6}
-              style={{
-                width: '100%',
-                padding: 12,
-                border: `1px solid ${SHELL_TOKENS.line}`,
-                borderRadius: 8,
-                background: SHELL_TOKENS.card,
-                color: SHELL_TOKENS.ink,
-                fontSize: 13,
-                fontFamily:
-                  '"JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-                boxSizing: 'border-box',
-                outline: 'none',
-                lineHeight: 1.55,
-              }}
+              style={{ fontSize: 13, fontFamily: font.mono }}
             />
           </div>
           <button

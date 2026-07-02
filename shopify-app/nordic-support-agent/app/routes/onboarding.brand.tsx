@@ -5,6 +5,7 @@ import { requireWorkspace } from '../lib/workspace-auth';
 import { loadOrCreateDefaultAssistant, updateAssistant } from '../lib/assistants';
 import { FieldLabel, OnboardingShell, SegmentedPicker } from '../components/onboarding-shell';
 import { Card, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
+import { Input, font } from '../components/ui';
 
 interface LoaderData {
   primaryColor: string;
@@ -188,24 +189,11 @@ export default function OnboardingBrand() {
                     cursor: 'pointer',
                   }}
                 />
-                <input
+                <Input
                   type="text"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  style={{
-                    flex: 1,
-                    height: 44,
-                    padding: '0 14px',
-                    border: `1px solid ${SHELL_TOKENS.line}`,
-                    borderRadius: 8,
-                    background: SHELL_TOKENS.card,
-                    color: SHELL_TOKENS.ink,
-                    fontSize: 13,
-                    fontFamily:
-                      '"JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                  }}
+                  style={{ flex: 1, fontFamily: font.mono, fontSize: 13 }}
                 />
               </div>
             </div>

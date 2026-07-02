@@ -24,6 +24,7 @@ import {
 import { signWidgetToken } from '../lib/widget-token.ts';
 import { requireWorkspace, type MembershipSummary } from '../lib/workspace-auth.ts';
 import { AdminShell } from '../components/admin-shell';
+import { color, radius } from '../components/ui';
 import { AssistantModal } from '../components/assistant-ui/assistant-modal';
 import { ChatRuntimeProvider } from '../components/assistant-ui/chat-runtime';
 
@@ -2087,40 +2088,43 @@ const kbSubH: React.CSSProperties = {
   letterSpacing: 0.4,
 };
 
+// Local style objects for this panel's many inline call sites, sourced from
+// the shared design tokens (components/ui/theme) so there's no hardcoded
+// palette here either.
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '9px 11px',
   fontSize: 13,
-  border: '1px solid #e2e1db',
-  borderRadius: 8,
+  border: `1px solid ${color.line}`,
+  borderRadius: radius.sm,
   outline: 'none',
-  background: '#fff',
-  color: '#12140f',
+  background: color.card,
+  color: color.ink,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
   padding: '9px 18px',
   fontSize: 13,
   fontWeight: 500,
-  background: '#0e3d2a',
-  color: '#fff',
+  background: color.brand,
+  color: color.onBrand,
   border: 'none',
-  borderRadius: 999,
+  borderRadius: radius.pill,
   cursor: 'pointer',
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
   ...primaryButtonStyle,
-  background: '#fff',
-  color: '#12140f',
-  border: '1px solid #e2e1db',
+  background: color.card,
+  color: color.ink,
+  border: `1px solid ${color.line}`,
 };
 
 const ghostButtonStyle: React.CSSProperties = {
   padding: '4px 8px',
   fontSize: 12,
   background: 'transparent',
-  color: '#71716b',
+  color: color.muted,
   border: 'none',
   cursor: 'pointer',
   textDecoration: 'underline',

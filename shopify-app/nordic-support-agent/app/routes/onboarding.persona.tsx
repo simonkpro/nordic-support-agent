@@ -7,9 +7,9 @@ import {
   FieldLabel,
   OnboardingShell,
   SegmentedPicker,
-  TextInput,
 } from '../components/onboarding-shell';
 import { SHELL_TOKENS, SectionLabel } from '../components/admin-shell';
+import { Input, Textarea } from '../components/ui';
 
 interface LoaderData {
   name: string;
@@ -86,25 +86,12 @@ export default function OnboardingPersona() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div>
               <FieldLabel label="Agentens namn" hint="visas i widgetens rubrik" />
-              <input
+              <Input
                 type="text"
                 name="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  height: 44,
-                  padding: '0 14px',
-                  border: `1px solid ${SHELL_TOKENS.line}`,
-                  borderRadius: 8,
-                  background: SHELL_TOKENS.card,
-                  color: SHELL_TOKENS.ink,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
               />
             </div>
             <div>
@@ -118,48 +105,21 @@ export default function OnboardingPersona() {
             </div>
             <div>
               <FieldLabel label="Hälsning" hint="första meddelandet i widgeten" />
-              <textarea
+              <Textarea
                 name="greeting"
                 defaultValue={greeting}
                 onChange={(e) => setGreeting(e.target.value)}
                 rows={3}
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  border: `1px solid ${SHELL_TOKENS.line}`,
-                  borderRadius: 8,
-                  background: SHELL_TOKENS.card,
-                  color: SHELL_TOKENS.ink,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  lineHeight: 1.55,
-                  resize: 'vertical',
-                }}
               />
             </div>
             <div>
               <FieldLabel label="Underrubrik" hint="valfritt" />
-              <input
+              <Input
                 type="text"
                 name="subtitle"
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
                 placeholder="Svarar vanligtvis inom några minuter"
-                style={{
-                  width: '100%',
-                  height: 44,
-                  padding: '0 14px',
-                  border: `1px solid ${SHELL_TOKENS.line}`,
-                  borderRadius: 8,
-                  background: SHELL_TOKENS.card,
-                  color: SHELL_TOKENS.ink,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
               />
             </div>
           </div>

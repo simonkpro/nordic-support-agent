@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { SHELL_TOKENS } from './admin-shell';
 import { font } from './ui/theme';
+import { Input } from './ui';
 
 /**
  * Onboarding wrapper. Full-page, no admin sidebar — first-run users see
@@ -573,25 +574,13 @@ export function TextInput({
   mono?: boolean;
 }) {
   return (
-    <input
+    <Input
       type={type}
       name={name}
       defaultValue={defaultValue}
       placeholder={placeholder}
       required={required}
-      style={{
-        width: '100%',
-        height: 44,
-        padding: '0 14px',
-        border: `1px solid ${SHELL_TOKENS.line}`,
-        borderRadius: 8,
-        background: SHELL_TOKENS.card,
-        color: SHELL_TOKENS.ink,
-        fontSize: 14,
-        fontFamily: mono ? MONO_STACK : 'inherit',
-        boxSizing: 'border-box',
-        outline: 'none',
-      }}
+      style={mono ? { fontFamily: MONO_STACK } : undefined}
     />
   );
 }
