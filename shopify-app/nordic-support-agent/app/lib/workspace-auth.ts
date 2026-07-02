@@ -110,8 +110,13 @@ export async function startSignIn(
       include: { memberships: { include: { workspace: { select: { disabledAt: true } } } } },
     });
     const hasAccess = user?.memberships.some((m) => m.workspace.disabledAt == null) ?? false;
-    // Indistinguishable from success: no code row, no email.
-    if (!hasAccess) return { ok: true };
+    // Indistinguishable from success: no code row, no email. Log for ops
+    // (server-side only) — a legit user "not getting the email" is most
+    // often this branch or a failed send below.
+    if (!hasAccess) {
+      console.warn('[signin] no-access email, silent no-op');
+      return { ok: true };
+    }
   }
 
   // Random URL-safe code. 24 random bytes → ~32 chars base64url, enough
@@ -129,7 +134,7 @@ export async function startSignIn(
 
   const link = `${baseUrl}/auth/verify?c=${encodeURIComponent(code)}&e=${encodeURIComponent(email)}`;
   const sender = getHandoffSender();
-  await sender.send({
+  const sent = await sender.send({
     to: email,
     subject: 'Sign in to Vitrio',
     body: [
@@ -146,6 +151,10 @@ export async function startSignIn(
     verifiedEmail: email,
     agentName: '',
   });
+  if (!sent.ok) {
+    // Still return ok (anti-enumeration), but surface the failure in logs.
+    console.error('[signin] magic-link email failed to send:', sent.error);
+  }
   return { ok: true };
 }
 
