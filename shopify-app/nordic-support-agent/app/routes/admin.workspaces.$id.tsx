@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { Form, Link, redirect, useActionData, useLoaderData } from 'react-router';
 import { requirePlatformAdmin, startImpersonation } from '../lib/workspace-auth.ts';
@@ -12,7 +13,7 @@ import { listAssistants } from '../lib/assistants.ts';
 import { checkFramable } from '../lib/safe-fetch.ts';
 import { signDemoLink, demoLinkExpiry } from '../lib/demo-link.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
-import { Button, Input, Select, color } from '../components/ui';
+import { Button, Input, Select, color, font } from '../components/ui';
 
 /**
  * Single-workspace admin: rename, suspend/restore, add members, view the
@@ -31,6 +32,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     assistant: primary
       ? { id: primary.id, name: primary.name, published: primary.published }
       : null,
+    widgetBase: publicBaseUrl(request),
   };
 };
 
@@ -123,7 +125,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function AdminWorkspaceDetail() {
-  const { workspace, assistant } = useLoaderData<typeof loader>();
+  const { workspace, assistant, widgetBase } = useLoaderData<typeof loader>();
   const data = useActionData<typeof action>();
   const t = SHELL_TOKENS;
   const disabled = workspace.disabledAt != null;
@@ -306,6 +308,14 @@ export default function AdminWorkspaceDetail() {
               </div>
             )}
           </Card>
+
+          {assistant && (
+            <LiveSiteDemoCard
+              assistantId={assistant.id}
+              published={assistant.published}
+              widgetBase={widgetBase}
+            />
+          )}
         </div>
 
         <Card>
@@ -329,6 +339,91 @@ export default function AdminWorkspaceDetail() {
         </Card>
       </div>
     </>
+  );
+}
+
+/**
+ * "Inject on the live site" — the reliable demo for app-heavy sites the iframe
+ * can't render (qasa etc.). Drops the workspace's real widget onto whatever
+ * page the browser is on, running in the top window (no iframe, no
+ * screenshot). Offered as a draggable bookmarklet and a copy-paste snippet
+ * for Chrome DevTools → Console. Nothing secret here: the widget script + the
+ * assistant id are exactly what a client would embed on their own site.
+ */
+function LiveSiteDemoCard({
+  assistantId,
+  published,
+  widgetBase,
+}: {
+  assistantId: string;
+  published: boolean;
+  widgetBase: string;
+}) {
+  const t = SHELL_TOKENS;
+  const snippet =
+    `(function(){var s=document.createElement('script');` +
+    `s.src='${widgetBase}/widget.js';` +
+    `s.setAttribute('data-assistant','${assistantId}');` +
+    `s.async=true;document.body.appendChild(s);})();`;
+  const bookmarklet = 'javascript:' + snippet;
+
+  // React strips javascript: hrefs, so set it after mount. onClick is
+  // prevented so clicking it here doesn't inject into the admin page — it's
+  // meant to be dragged to the bookmarks bar.
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    ref.current?.setAttribute('href', bookmarklet);
+  }, [bookmarklet]);
+
+  return (
+    <Card>
+      <SectionLabel>Demo on the prospect&apos;s live site</SectionLabel>
+      <p style={{ fontSize: 13, color: t.muted, margin: '0 0 14px', lineHeight: 1.5 }}>
+        Drops this widget onto any live page — works where the iframe demo
+        can&apos;t (app-heavy sites like qasa). Drag the button to your bookmarks
+        bar, open the prospect&apos;s site, and click it. Or paste the snippet
+        into Chrome DevTools → Console.
+      </p>
+      {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- draggable bookmarklet; real href (javascript:) is set after mount */}
+      <a
+        ref={ref}
+        href="#"
+        onClick={(e) => e.preventDefault()}
+        draggable
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          background: t.brand,
+          color: '#fff',
+          borderRadius: 999,
+          padding: '9px 18px',
+          fontSize: 13,
+          fontWeight: 500,
+          textDecoration: 'none',
+          cursor: 'grab',
+          marginBottom: 12,
+        }}
+      >
+        ⠿ Vitrio-demo
+      </a>
+      <Input
+        readOnly
+        value={snippet}
+        onFocus={(e) => e.currentTarget.select()}
+        style={{ fontFamily: font.mono, fontSize: 11.5 }}
+      />
+      {!published && (
+        <p style={{ marginTop: 8, color: t.amber, fontSize: 12.5, lineHeight: 1.5 }}>
+          Publish the assistant first (Inställningar → publicera) or the widget
+          won&apos;t load.
+        </p>
+      )}
+      <p style={{ marginTop: 8, color: t.grey, fontSize: 12, lineHeight: 1.5 }}>
+        Won&apos;t load on the rare site whose content-security-policy blocks
+        external scripts.
+      </p>
+    </Card>
   );
 }
 
