@@ -19,7 +19,7 @@ one more PII issue (tier-2 tracking/refund IDOR), and logged new findings.
 | 2 | **Critical** | Verification-tier bypass — client-supplied "verified" email exfiltrates order PII | ✅ Fixed |
 | 3 | **High** | Workspace suspension bypass — disabled client can re-mint widget tokens | ✅ Fixed & verified |
 | 4 | **High** | SSRF in the sitemap crawler (cloud metadata / internal network, results read back via bot) | ✅ Fixed & verified |
-| 5 | Medium | Rate limiting bypassable (spoofable `X-Forwarded-For`) + per-instance memory | ⏳ Open |
+| 5 | Medium | Rate limiting bypassable (spoofable `X-Forwarded-For`) + per-instance memory | ✅ IP-spoof fixed; durable Redis backend ready (activate by provisioning Upstash) |
 | 6 | Medium | Missing security headers (HSTS, nosniff, Referrer-Policy, frame policy) | ⏳ Open |
 | 7 | Medium | Magic-link codes logged in full when Resend env vars missing | ⏳ Open (mitigated — Resend now configured) |
 | 8 | Medium | Origin allowlist is advisory only (header-based, off by default) | ⏳ Open (by-design note) |
@@ -246,11 +246,11 @@ Shopify-embedded path vs. standalone isolation.
   store — Shop A could read Shop B's orders. Mitigated only because there's a
   single commerce tenant today. Bind adapters to the token's shop before
   onboarding a second commerce tenant.
-- **MEDIUM — Tier-2 verification codes are only `console.log`'d**
-  (`ConsoleEmailSender` is the only sender wired for chat). Tier 2 is
-  effectively non-functional for real customers, and codes land in logs. Wire
-  a real Resend sender (mirroring the handoff path) and stop logging codes
-  before enabling Tier 2.
+- **MEDIUM → FIXED — Tier-2 verification codes were only `console.log`'d.**
+  `ConsoleEmailSender` was the only sender wired for chat, so tier 2 was
+  non-functional and codes landed only in logs. Now sent via Resend
+  (`getVerificationEmailSender`), console fallback only when RESEND_* is
+  unset (dev). Tier 2 works end to end.
 - **MEDIUM — DSAR erase deletes `VerificationCode` rows across all tenants**
   (filter is email-only; the table has no shop column). Scope to the tenant.
 - **MEDIUM/LOW — DSAR single-use is a TOCTOU race** (read `completedAt`, act,
