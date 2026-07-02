@@ -13,7 +13,7 @@ with the critical/high findings verified by hand against the running app.
 | 1 | **Critical** | Cross-tenant assistant takeover (IDOR) in `/preview/chat` action | ✅ Fixed & verified |
 | 2 | **Critical** | Verification-tier bypass — client-supplied "verified" email exfiltrates order PII | ✅ Fixed |
 | 3 | **High** | Workspace suspension bypass — disabled client can re-mint widget tokens | ✅ Fixed & verified |
-| 4 | **High** | SSRF in the sitemap crawler (cloud metadata / internal network, results read back via bot) | ⏳ Open — recommend next |
+| 4 | **High** | SSRF in the sitemap crawler (cloud metadata / internal network, results read back via bot) | ✅ Fixed & verified |
 | 5 | Medium | Rate limiting bypassable (spoofable `X-Forwarded-For`) + per-instance memory | ⏳ Open |
 | 6 | Medium | Missing security headers (HSTS, nosniff, Referrer-Policy, frame policy) | ⏳ Open |
 | 7 | Medium | Magic-link codes logged in full when Resend env vars missing | ⏳ Open (mitigated — Resend now configured) |
@@ -84,23 +84,30 @@ Fix: a new `isShopSuspended(shop)` check on the public-token endpoint and both
 chat paths. Verified live: token issuance returns 200 → **404 once disabled** →
 200 again after re-enable.
 
+### 4. HIGH — SSRF in the sitemap crawler
+
+`app/lib/sitemap-crawler.ts` fetched whatever URL a workspace configured, with
+no scheme allowlist, no private-IP/link-local block, no redirect control, and
+no response-size cap — and the fetched body is **ingested into the knowledge
+base**, so stolen internal/metadata content became readable back through the
+chatbot (a clean exfiltration channel for cloud credentials).
+
+Fix: a new `app/lib/safe-fetch.ts` choke point that all crawler network access
+now goes through. It (1) allows only http/https; (2) validates every resolved
+IP against private/reserved ranges **at connect time** via undici's
+`Agent.lookup`, which also pins the connection to the validated address so
+there's no DNS-rebinding TOCTOU window; (3) rejects literal-IP hosts up front
+(undici skips the lookup for those); (4) follows redirects manually with a hop
+cap and re-validates every hop; (5) caps the response at 5 MB while streaming.
+IPv6 is restricted to global-unicast (2000::/3), which also neutralises
+IPv4-mapped / NAT64 tricks. Covered by `safe-fetch.test.ts` (9 cases) and
+verified live: cloud-metadata IP, `localhost`, `10.x`, `file://`, a public
+hostname resolving to loopback (`localtest.me`), and a real httpbin redirect to
+`169.254.169.254` are all blocked; ordinary public sites still fetch.
+
 ---
 
 ## Open findings — recommended order
-
-### 4. HIGH — SSRF in the sitemap crawler *(fix next)*
-
-`app/lib/sitemap-crawler.ts` fetches whatever URL a workspace configures, with
-no scheme allowlist, no private-IP/link-local block, no redirect control, and
-no response-size cap. A tenant can point it (directly or via a `302` from a
-public URL, or via `<loc>` entries inside a sitemap) at
-`http://169.254.169.254/…` (cloud metadata), `localhost`, or internal
-`10./192.168.` hosts. Worse, the fetched body is **ingested into the knowledge
-base**, so stolen internal/metadata content becomes readable back through the
-chatbot — a clean exfiltration channel for cloud credentials.
-Fix: resolve DNS and reject private/loopback/link-local/CGNAT ranges before
-connecting, pin the resolved IP, set `redirect: 'manual'` and re-validate each
-hop, restrict to http/https, and cap response bytes while streaming.
 
 ### 5. Medium — Rate limiting bypassable & non-durable
 

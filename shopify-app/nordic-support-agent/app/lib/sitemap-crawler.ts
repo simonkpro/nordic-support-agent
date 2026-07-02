@@ -4,6 +4,7 @@ import {
   ingestDocument,
   deleteDocument,
 } from './knowledge.ts';
+import { safeFetchText } from './safe-fetch.ts';
 
 /**
  * Sitemap → KB crawler. Fetches sitemap.xml (resolving sitemap-index files
@@ -15,7 +16,7 @@ import {
  * crawl are skipped. Pages that now match an exclude glob get deleted.
  */
 
-const USER_AGENT = 'NordicSupportAgent/0.1 (+sitemap crawler)';
+const USER_AGENT = 'VitrioBot/1.0 (+sitemap crawler)';
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_PAGES_PER_CRAWL = 200; // hard ceiling to avoid runaway costs
 
@@ -43,31 +44,21 @@ export interface CrawlReport {
   errors: Array<{ url: string; error: string }>;
 }
 
-async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: ctrl.signal,
-      headers: { 'user-agent': USER_AGENT, ...(init?.headers ?? {}) },
-    });
-  } finally {
-    clearTimeout(t);
-  }
-}
-
 /**
  * Parse a sitemap.xml. If it's a sitemapindex, recursively fetch each
  * child sitemap and aggregate entries. Returns flat list of urls + lastmod.
+ *
+ * All network access goes through safeFetchText (SSRF-hardened): the URL
+ * (and every redirect hop / child <loc>) is validated against private and
+ * reserved IP ranges at connect time before any bytes are read.
  */
 export async function fetchSitemap(url: string, seen = new Set<string>()): Promise<SitemapEntry[]> {
   if (seen.has(url)) return [];
   seen.add(url);
 
-  const res = await fetchWithTimeout(url);
+  const res = await safeFetchText(url, { timeoutMs: FETCH_TIMEOUT_MS, userAgent: USER_AGENT });
   if (!res.ok) throw new Error(`Sitemap fetch failed (${res.status}) for ${url}`);
-  const xml = await res.text();
+  const xml = res.text;
   const $ = cheerio.load(xml, { xmlMode: true });
 
   // Sitemap index → recurse.
@@ -132,14 +123,13 @@ function isExcluded(urlStr: string, excludeRegexes: RegExp[]): boolean {
  * a markdown-ish text blob (title as # heading + body paragraphs).
  */
 export async function extractPageContent(url: string): Promise<{ title: string; text: string } | null> {
-  const res = await fetchWithTimeout(url);
+  const res = await safeFetchText(url, { timeoutMs: FETCH_TIMEOUT_MS, userAgent: USER_AGENT });
   if (!res.ok) throw new Error(`Page fetch failed (${res.status})`);
-  const ct = res.headers.get('content-type') ?? '';
-  if (!ct.includes('html')) {
+  if (!res.contentType.includes('html')) {
     return null; // skip non-HTML resources (PDFs etc — could be added later)
   }
 
-  const html = await res.text();
+  const html = res.text;
   const $ = cheerio.load(html);
   // Remove boilerplate / non-content elements.
   $(
