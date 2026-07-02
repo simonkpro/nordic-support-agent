@@ -841,6 +841,7 @@ function PreviewBody({
       }}
     >
       <div
+        className="resp-two-col"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(360px, 420px) 1fr',

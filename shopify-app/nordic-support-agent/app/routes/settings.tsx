@@ -54,7 +54,7 @@ export default function Settings() {
       impersonating={data.impersonating}
     >
       <PageHeader title="Konto" subtitle="Arbetsytans namn och medlemmar." />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         <Card>
           <SectionLabel>Arbetsytans namn</SectionLabel>
           {data.canRename ? (

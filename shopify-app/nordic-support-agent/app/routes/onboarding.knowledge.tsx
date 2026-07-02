@@ -207,7 +207,7 @@ export default function OnboardingKnowledge() {
       </div>
 
       {tab === 'upload' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
+        <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div>
               <FieldLabel

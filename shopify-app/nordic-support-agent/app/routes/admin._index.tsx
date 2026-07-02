@@ -58,8 +58,9 @@ export default function AdminIndex() {
         title="Client workspaces"
         subtitle="Every tenant on the platform with activity over the last 30 days."
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
+      <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
         <Card padding={0}>
+          <div className="resp-scroll-x">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -111,6 +112,7 @@ export default function AdminIndex() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
 
         <Card>

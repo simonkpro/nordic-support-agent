@@ -82,7 +82,7 @@ export default function OnboardingPersona() {
       primaryActionState={fetcher.state}
     >
       <Form method="post" id="onboarding-form">
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 40 }}>
+        <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 40 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div>
               <FieldLabel label="Agentens namn" hint="visas i widgetens rubrik" />

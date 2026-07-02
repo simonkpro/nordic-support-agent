@@ -64,7 +64,7 @@ export default function OnboardingInstall() {
       primaryActionState={fetcher.state}
     >
       <Form method="post" id="onboarding-form" style={{ display: 'none' }} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+      <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
         {/* LEFT — snippet + paste-here */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>

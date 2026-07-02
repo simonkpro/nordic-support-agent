@@ -81,6 +81,7 @@ export function OnboardingShell({
     >
       {/* Top header */}
       <header
+        className="resp-header"
         style={{
           height: 64,
           borderBottom: `1px solid ${SHELL_TOKENS.line}`,
@@ -109,6 +110,7 @@ export function OnboardingShell({
 
       {/* Stepper */}
       <div
+        className="resp-scroll-x"
         style={{
           padding: '24px 40px',
           display: 'flex',
@@ -121,6 +123,7 @@ export function OnboardingShell({
 
       {/* Content */}
       <main
+        className="resp-main"
         style={{
           flex: 1,
           padding: '48px 56px 32px',
@@ -173,6 +176,7 @@ export function OnboardingShell({
 
       {/* Footer */}
       <footer
+        className="resp-header"
         style={{
           height: 76,
           borderTop: `1px solid ${SHELL_TOKENS.line}`,

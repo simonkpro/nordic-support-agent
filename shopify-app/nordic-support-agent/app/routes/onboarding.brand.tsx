@@ -90,7 +90,7 @@ export default function OnboardingBrand() {
         <input type="hidden" name="primaryColor" value={brand} />
         <input type="hidden" name="accentColor" value={accent} />
         <input type="hidden" name="theme" value={theme} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 40 }}>
+        <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 40 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
             <div>
               <FieldLabel label="Förinställning" hint="9 utvalda paletter" />

@@ -90,7 +90,7 @@ export default function AdminWorkspaceDetail() {
       />
       {data?.error && <p style={{ color: '#b91c1c', fontSize: 13 }}>{data.error}</p>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="resp-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <Card>
             <SectionLabel>Rename</SectionLabel>

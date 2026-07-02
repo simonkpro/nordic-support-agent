@@ -118,6 +118,7 @@ export default function ConversationsView() {
       />
 
       <div
+        className="resp-two-col"
         style={{
           display: 'grid',
           gridTemplateColumns: '320px 1fr 280px',

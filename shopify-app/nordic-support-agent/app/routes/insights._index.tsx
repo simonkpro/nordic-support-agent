@@ -144,6 +144,7 @@ export default function InsightsIndex() {
 
       {/* KPI strip — business-owner-friendly only */}
       <div
+        className="resp-stats"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
@@ -160,6 +161,7 @@ export default function InsightsIndex() {
 
       {/* Outcomes per day + heatmap */}
       <div
+        className="resp-two-col"
         style={{
           display: 'grid',
           gridTemplateColumns: '3fr 2fr',
@@ -173,6 +175,7 @@ export default function InsightsIndex() {
 
       {/* Issues (live) + satisfaction (still placeholder) */}
       <div
+        className="resp-two-col"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -201,6 +204,7 @@ export default function InsightsIndex() {
 
       {/* Languages + origin hosts */}
       <div
+        className="resp-two-col"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',

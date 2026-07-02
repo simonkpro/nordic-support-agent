@@ -57,6 +57,7 @@ export function AdminShell({
 }) {
   return (
     <div
+      className="resp-shell"
       style={{
         fontFamily: FONT_STACK,
         background: PALETTE.bg,
@@ -187,7 +188,7 @@ export function AdminShell({
           </div>
         </div>
       </aside>
-      <main style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>{children}</main>
+      <main className="resp-main" style={{ padding: '40px 48px 80px', maxWidth: 1280 }}>{children}</main>
     </div>
   );
 }

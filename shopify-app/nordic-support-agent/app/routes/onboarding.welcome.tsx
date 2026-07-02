@@ -108,6 +108,7 @@ export default function OnboardingWelcome() {
     >
       <Form method="post" id="onboarding-form">
         <div
+          className="resp-two-col"
           style={{
             display: 'grid',
             gridTemplateColumns: '1.4fr 1fr',

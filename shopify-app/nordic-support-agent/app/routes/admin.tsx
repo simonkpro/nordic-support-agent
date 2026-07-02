@@ -28,6 +28,7 @@ export default function AdminLayout() {
       }}
     >
       <header
+        className="resp-header"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -49,7 +50,7 @@ export default function AdminLayout() {
           </Link>
         </div>
       </header>
-      <main style={{ padding: '32px 32px 80px', maxWidth: 1100, margin: '0 auto' }}>
+      <main className="resp-main" style={{ padding: '32px 32px 80px', maxWidth: 1100, margin: '0 auto' }}>
         <Outlet />
       </main>
     </div>
