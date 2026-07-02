@@ -107,7 +107,7 @@ export function AdminShell({
       >
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
-            Nordic Support
+            Vitrio
           </div>
           {memberships && memberships.length > 1 ? (
             <Form method="post" action="/workspaces" style={{ marginTop: 6 }}>

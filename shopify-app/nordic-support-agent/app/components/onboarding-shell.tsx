@@ -91,7 +91,7 @@ export function OnboardingShell({
         }}
       >
         <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>
-          Nordic Support
+          Vitrio
         </div>
         <Link
           to="/preview/chat"

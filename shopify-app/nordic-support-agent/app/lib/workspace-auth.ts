@@ -131,7 +131,7 @@ export async function startSignIn(
   const sender = getHandoffSender();
   await sender.send({
     to: email,
-    subject: 'Sign in to Nordic Support Agent',
+    subject: 'Sign in to Vitrio',
     body: [
       `Click the link below within 15 minutes to sign in:`,
       ``,

@@ -39,7 +39,7 @@ export default function AdminLayout() {
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
           <Link to="/admin" style={{ color: t.ink, textDecoration: 'none', fontWeight: 600 }}>
-            Nordic Support — Platform admin
+            Vitrio — Platform admin
           </Link>
         </div>
         <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
