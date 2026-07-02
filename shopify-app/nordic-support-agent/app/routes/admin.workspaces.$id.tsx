@@ -8,6 +8,9 @@ import {
   sendWorkspaceInvite,
   setWorkspaceDisabled,
 } from '../lib/admin.ts';
+import { listAssistants } from '../lib/assistants.ts';
+import { checkFramable } from '../lib/safe-fetch.ts';
+import { signDemoLink } from '../lib/demo-link.ts';
 import { Card, PageHeader, SectionLabel, SHELL_TOKENS } from '../components/admin-shell';
 
 /**
@@ -20,8 +23,23 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   await requirePlatformAdmin(request);
   const detail = await getWorkspaceDetail(params.id ?? '');
   if (!detail) throw new Response('Not Found', { status: 404 });
-  return { workspace: detail };
+  const assistants = await listAssistants(params.id ?? '');
+  const primary = assistants.find((a) => a.isDefault) ?? assistants[0] ?? null;
+  return {
+    workspace: detail,
+    assistant: primary
+      ? { id: primary.id, name: primary.name, published: primary.published }
+      : null,
+  };
 };
+
+/** Build a public host (the demo lives on the apex, not the dashboard
+ * subdomain, so the link sent to a prospect reads cleanly). */
+function publicBaseUrl(request: Request): string {
+  const proto = request.headers.get('X-Forwarded-Proto') ?? 'https';
+  const host = request.headers.get('X-Forwarded-Host') ?? request.headers.get('Host') ?? '';
+  return `${proto}://${host.replace(/^dashboard\./, '')}`;
+}
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const session = await requirePlatformAdmin(request);
@@ -68,6 +86,33 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     );
     return result.ok ? { ok: true, sentTo: String(form.get('email') ?? '') } : { error: result.error };
   }
+  if (intent === 'demo-link') {
+    const raw = String(form.get('url') ?? '').trim();
+    let normalized: string;
+    try {
+      const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('scheme');
+      normalized = u.toString();
+    } catch {
+      return { demoError: 'Enter a valid URL (e.g. example.com).' };
+    }
+    const assistants = await listAssistants(workspaceId);
+    const primary = assistants.find((a) => a.isDefault) ?? assistants[0];
+    if (!primary) {
+      return { demoError: 'This workspace has no assistant yet.' };
+    }
+    const framing = await checkFramable(normalized);
+    const sig = signDemoLink(normalized, primary.id);
+    const demoUrl = `${publicBaseUrl(request)}/demo?site=${encodeURIComponent(
+      normalized,
+    )}&a=${primary.id}&sig=${sig}`;
+    return {
+      demoUrl,
+      demoFramable: framing.framable,
+      demoFramingReason: framing.reason ?? null,
+      demoPublished: primary.published,
+    };
+  }
   if (intent === 'impersonate') {
     await startImpersonation(session.id, session.user, workspaceId);
     throw redirect('/insights');
@@ -76,7 +121,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function AdminWorkspaceDetail() {
-  const { workspace } = useLoaderData<typeof loader>();
+  const { workspace, assistant } = useLoaderData<typeof loader>();
   const data = useActionData<typeof action>();
   const t = SHELL_TOKENS;
   const disabled = workspace.disabledAt != null;
@@ -201,6 +246,62 @@ export default function AdminWorkspaceDetail() {
                 {disabled ? 'Re-enable workspace' : 'Disable workspace'}
               </button>
             </Form>
+          </Card>
+
+          <Card>
+            <SectionLabel>Client demo</SectionLabel>
+            <p style={{ fontSize: 13, color: t.muted, margin: '0 0 12px', lineHeight: 1.5 }}>
+              Generate a shareable link that shows the prospect&apos;s own site with
+              this workspace&apos;s widget floating on top.
+            </p>
+            {!assistant ? (
+              <p style={{ fontSize: 12.5, color: t.amber }}>
+                No assistant yet — finish onboarding for this workspace first.
+              </p>
+            ) : (
+              <Form method="post" style={{ display: 'flex', gap: 8 }}>
+                <input type="hidden" name="intent" value="demo-link" />
+                <input name="url" required placeholder="prospect.com" style={inputStyle} />
+                <button type="submit" style={secondaryButton}>
+                  Generate
+                </button>
+              </Form>
+            )}
+            {data && 'demoError' in data && data.demoError && (
+              <p style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{data.demoError}</p>
+            )}
+            {data && 'demoUrl' in data && data.demoUrl && (
+              <div style={{ marginTop: 12 }}>
+                <input
+                  readOnly
+                  value={data.demoUrl}
+                  onFocus={(e) => e.currentTarget.select()}
+                  style={{ ...inputStyle, width: '100%', fontSize: 12.5 }}
+                />
+                <div style={{ marginTop: 8 }}>
+                  <a
+                    href={data.demoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: t.brand, fontSize: 12.5 }}
+                  >
+                    Open demo →
+                  </a>
+                </div>
+                {!data.demoPublished && (
+                  <p style={{ marginTop: 8, color: t.amber, fontSize: 12.5, lineHeight: 1.5 }}>
+                    The assistant isn&apos;t published yet — the widget won&apos;t load
+                    until you publish it (from Inställningar → publicera).
+                  </p>
+                )}
+                {!data.demoFramable && (
+                  <p style={{ marginTop: 8, color: t.amber, fontSize: 12.5, lineHeight: 1.5 }}>
+                    Heads up: this site blocks embedding ({data.demoFramingReason}), so the
+                    page may render blank in the demo.
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
         </div>
 

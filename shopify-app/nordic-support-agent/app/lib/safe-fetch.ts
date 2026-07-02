@@ -130,6 +130,8 @@ export interface SafeFetchResult {
   ok: boolean;
   status: number;
   contentType: string;
+  /** Response headers, lowercased keys. */
+  headers: Record<string, string>;
   text: string;
 }
 
@@ -185,16 +187,55 @@ export async function safeFetchText(
       throw new Error(`Response too large (${declared} bytes) for ${rawUrl}`);
     }
 
+    const headers: Record<string, string> = {};
+    res.headers.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+
     // …and enforce the cap while streaming for chunked/lying responses.
     const text = await readCapped(
       res.body as unknown as ReadableStream<Uint8Array> | null,
       MAX_RESPONSE_BYTES,
       rawUrl,
     );
-    return { ok: res.ok, status: res.status, contentType, text };
+    return { ok: res.ok, status: res.status, contentType, headers, text };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Best-effort check of whether a page can be embedded in an <iframe> from a
+ * different origin. Reads X-Frame-Options and CSP frame-ancestors. Used by
+ * the client-demo generator to warn before a demo link is sent. Fails open
+ * (assumes framable) if the site can't be reached — the demo page will just
+ * show a fallback if the iframe really is blocked.
+ */
+export async function checkFramable(
+  rawUrl: string,
+): Promise<{ framable: boolean; reason?: string }> {
+  let res: SafeFetchResult;
+  try {
+    res = await safeFetchText(rawUrl, { timeoutMs: 8000 });
+  } catch {
+    return { framable: true }; // can't tell — don't block the demo
+  }
+  const xfo = (res.headers['x-frame-options'] ?? '').toLowerCase();
+  if (xfo.includes('deny') || xfo.includes('sameorigin')) {
+    return { framable: false, reason: 'X-Frame-Options: ' + xfo.trim() };
+  }
+  const csp = res.headers['content-security-policy'] ?? '';
+  const fa = /frame-ancestors\s+([^;]+)/i.exec(csp);
+  if (fa) {
+    // A frame-ancestors directive is present, so it restricts embedding.
+    // We can embed only if it's a wildcard or explicitly names vitrio.se;
+    // 'self'/'none'/other origins all mean we're blocked.
+    const value = fa[1]!.toLowerCase();
+    const allowsUs =
+      value.includes('*') || /https?:\/\/([a-z0-9-]+\.)?vitrio\.se/.test(value);
+    if (!allowsUs) return { framable: false, reason: 'CSP frame-ancestors' };
+  }
+  return { framable: true };
 }
 
 async function readCapped(
