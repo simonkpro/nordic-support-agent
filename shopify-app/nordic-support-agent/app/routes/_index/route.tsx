@@ -199,6 +199,7 @@ const CSS = `
 `;
 
 const CONTACT_EMAIL = 'hej@vitrio.se';
+const BOOKING_URL = 'https://calendly.com/admin-vitrio/30min';
 
 function Pill({
   href,
@@ -215,7 +216,7 @@ function Pill({
     .filter(Boolean)
     .join(' ');
   return (
-    <a className={cls} href={href}>
+    <a className={cls} href={href} target="_blank" rel="noopener noreferrer">
       {children}
       <span className="vt-arr" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -249,7 +250,7 @@ export default function Landing() {
             <Link to="/signin" className="vt-plain">
               Logga in
             </Link>
-            <Pill href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>Boka demo</Pill>
+            <Pill href={BOOKING_URL}>Boka demo</Pill>
           </div>
         </header>
 
@@ -262,7 +263,7 @@ export default function Landing() {
             inte. Då kopplar den in dig.
           </p>
           <div className="vt-hero-cta">
-            <Pill large href={`mailto:${CONTACT_EMAIL}?subject=Demo%20av%20Vitrio`}>
+            <Pill large href={BOOKING_URL}>
               Boka en demo
             </Pill>
             <Link to="/signin" className="vt-signin">
@@ -375,7 +376,7 @@ export default function Landing() {
             Vi bygger en pilot på din riktiga kunskapsbas och visar dig svaren.
             Gillar du inte vad du ser kostar det ingenting.
           </p>
-          <Pill large inverse href={`mailto:${CONTACT_EMAIL}?subject=Pilot%20med%20Vitrio`}>
+          <Pill large inverse href={BOOKING_URL}>
             Boka en demo
           </Pill>
         </section>
