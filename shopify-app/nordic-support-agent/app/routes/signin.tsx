@@ -1,5 +1,5 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
-import { Form, useActionData, useNavigation, redirect } from 'react-router';
+import type { ActionFunctionArgs, LoaderFunctionArgs, LinksFunction, MetaFunction } from 'react-router';
+import { Form, Link, useActionData, useNavigation, redirect } from 'react-router';
 import { startSignIn, getSessionFromRequest } from '../lib/workspace-auth.ts';
 import { getClientIp, takeToken } from '../lib/rate-limit.ts';
 
@@ -26,11 +26,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const decision = takeToken(getClientIp(request), IP_RATE);
   if (!decision.allowed) {
-    return { ok: false, error: 'Too many attempts. Try again in a minute.' };
+    return { ok: false, error: 'För många försök. Prova igen om en minut.' };
   }
   const form = await request.formData();
   const email = String(form.get('email') ?? '');
-  if (!email) return { ok: false, error: 'Enter your email.' };
+  if (!email) return { ok: false, error: 'Ange din e-postadress.' };
 
   const fwdProto = request.headers.get('X-Forwarded-Proto');
   const fwdHost = request.headers.get('X-Forwarded-Host') ?? request.headers.get('Host');
@@ -42,6 +42,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { ok: true };
 };
 
+export const meta: MetaFunction = () => [{ title: 'Logga in — Vitrio' }];
+
+export const links: LinksFunction = () => [
+  { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+  { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
+  {
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap',
+  },
+];
+
+/* Palette mirrors SHELL_TOKENS in admin-shell.tsx. */
+const T = {
+  bg: '#f7f4ee',
+  card: '#fffdf8',
+  ink: '#1f2823',
+  muted: '#6b6359',
+  line: '#ece6d8',
+  tan: '#c8a87a',
+  forest: '#2c4a3e',
+  green: '#5b8a72',
+  red: '#a3452e',
+};
+const SANS = '"Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const SERIF = '"Fraunces", Georgia, serif';
+const MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+
 export default function SignIn() {
   const data = useActionData<typeof action>();
   const nav = useNavigation();
@@ -49,78 +76,135 @@ export default function SignIn() {
   return (
     <div
       style={{
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        maxWidth: 420,
-        margin: '80px auto',
-        padding: '0 16px',
-        color: '#111',
+        fontFamily: SANS,
+        background: T.bg,
+        color: T.ink,
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
+        WebkitFontSmoothing: 'antialiased',
       }}
     >
-      <div
+      <Link
+        to="/"
         style={{
-          border: '1px solid #e5e7eb',
-          borderRadius: 12,
-          padding: 28,
-          background: '#fff',
+          fontFamily: SERIF,
+          fontSize: 26,
+          fontWeight: 560,
+          color: T.ink,
+          textDecoration: 'none',
+          marginBottom: 28,
         }}
       >
-        <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>Sign in</h1>
-        <p style={{ margin: '0 0 24px', color: '#374151', lineHeight: 1.5, fontSize: 14 }}>
-          Enter your email and we'll send you a sign-in link.
+        Vitrio<span style={{ color: T.tan }}>.</span>
+      </Link>
+      <div
+        style={{
+          border: `1px solid ${T.line}`,
+          borderRadius: 14,
+          padding: '30px 28px',
+          background: T.card,
+          width: '100%',
+          maxWidth: 400,
+          boxShadow: '0 18px 44px -28px rgba(31,40,35,0.3)',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: MONO,
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: T.forest,
+            marginBottom: 10,
+          }}
+        >
+          Kunddashboard
+        </div>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 560, fontSize: 24, margin: '0 0 8px' }}>
+          Logga in
+        </h1>
+        <p style={{ margin: '0 0 22px', color: T.muted, lineHeight: 1.55, fontSize: 14 }}>
+          Ange din e-postadress så skickar vi en inloggningslänk. Inget
+          lösenord behövs.
         </p>
         {data?.ok ? (
-          <p style={{ color: '#065f46', fontSize: 14 }}>
-            Check your inbox. If your email has access to a workspace, a
-            sign-in link is on its way.
+          <p
+            style={{
+              color: T.green,
+              fontSize: 14,
+              lineHeight: 1.55,
+              margin: 0,
+              padding: '12px 14px',
+              background: T.bg,
+              border: `1px dashed ${T.tan}`,
+              borderRadius: 8,
+            }}
+          >
+            Kolla din inkorg. Om din e-postadress har tillgång till en
+            arbetsyta är en inloggningslänk på väg.
           </p>
         ) : (
           <Form method="post">
             <label
-              style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}
+              htmlFor="signin-email"
+              style={{ display: 'block', fontSize: 13, color: T.muted, marginBottom: 6 }}
             >
-              Email
+              E-post
             </label>
             <input
+              id="signin-email"
               type="email"
               name="email"
               required
               autoComplete="email"
-              autoFocus
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #d1d5db',
+                padding: '11px 12px',
+                border: `1px solid ${T.line}`,
                 borderRadius: 8,
-                fontSize: 14,
-                marginBottom: 16,
+                fontSize: 15,
+                fontFamily: SANS,
+                marginBottom: 14,
                 boxSizing: 'border-box',
+                background: '#fff',
+                color: T.ink,
               }}
             />
             <button
               type="submit"
               disabled={submitting}
               style={{
-                background: '#111827',
-                color: '#fff',
+                background: T.forest,
+                color: '#fdfcf7',
                 border: 'none',
-                padding: '10px 14px',
+                padding: '12px 14px',
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: 15,
+                fontWeight: 500,
+                fontFamily: SANS,
                 cursor: submitting ? 'wait' : 'pointer',
                 width: '100%',
               }}
             >
-              {submitting ? 'Sending…' : 'Send sign-in link'}
+              {submitting ? 'Skickar…' : 'Skicka inloggningslänk'}
             </button>
             {data && !data.ok && (
-              <p style={{ marginTop: 12, color: '#b91c1c', fontSize: 13 }}>
-                {data.error}
-              </p>
+              <p style={{ marginTop: 12, color: T.red, fontSize: 13 }}>{data.error}</p>
             )}
           </Form>
         )}
       </div>
+      <p style={{ fontSize: 12.5, color: T.muted, marginTop: 22 }}>
+        Ny kund? Vitrio är invite-only —{' '}
+        <a href="mailto:hej@vitrio.se" style={{ color: T.forest }}>
+          hör av dig
+        </a>{' '}
+        så sätter vi upp dig.
+      </p>
     </div>
   );
 }
