@@ -113,7 +113,21 @@ const CSS = `
   .vt-pill-inverse .vt-arr { background: var(--green); color: #fff; }
 
   /* ------- hero ------- */
-  .vt-hero { text-align: center; padding: 96px 0 68px; }
+  .vt-hero { text-align: center; padding: 96px 0 68px; position: relative; }
+  /* playful organic blobs drifting behind the hero */
+  .vt-hero::before {
+    content: ''; position: absolute; z-index: 0; pointer-events: none;
+    width: 340px; height: 340px; top: 10px; left: -130px; opacity: 0.75;
+    background: var(--c-clay);
+    border-radius: 47% 53% 44% 56% / 56% 44% 56% 44%;
+  }
+  .vt-hero::after {
+    content: ''; position: absolute; z-index: 0; pointer-events: none;
+    width: 250px; height: 250px; top: 120px; right: -90px; opacity: 0.66;
+    background: var(--c-sky);
+    border-radius: 58% 42% 51% 49% / 43% 57% 43% 57%;
+  }
+  .vt-hero > * { position: relative; z-index: 1; }
   .vt-badge {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--tint); color: var(--green);
@@ -138,7 +152,7 @@ const CSS = `
 
   /* ------- product canvas ------- */
   .vt-canvas {
-    background: var(--tint); border-radius: 28px;
+    background: var(--tint); border-radius: 56px 56px 56px 14px;
     padding: clamp(28px, 5vw, 60px);
     display: grid; grid-template-columns: 1fr 400px; gap: clamp(28px, 5vw, 64px);
     align-items: center; margin-bottom: 44px;
@@ -164,21 +178,22 @@ const CSS = `
     font-size: 13px; color: var(--green); font-weight: 500; margin: 0 0 34px;
   }
   .vt-section { padding: 92px 0 0; }
-  /* statement as a big warm colour-block shape */
+  /* statement as a big warm blobby shape */
   .vt-statement {
     text-align: center; padding: clamp(72px, 10vw, 116px) 32px;
-    background: var(--c-butter); border-radius: 32px; margin: 96px 0 0;
+    background: var(--c-butter); margin: 96px 0 0;
+    border-radius: 46% 54% 47% 53% / 30% 32% 68% 70%;
     font-family: var(--display); font-weight: 600; font-size: clamp(32px, 4.2vw, 52px);
     letter-spacing: -0.025em; line-height: 1.08;
   }
   .vt-statement span { color: var(--c-butter-ink); opacity: 0.72; }
 
-  /* how-it-works: a row of soft colour blocks */
+  /* how-it-works: a row of soft colour blocks with playful petal corners */
   .vt-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .vt-step { border-radius: 22px; padding: 28px 26px 30px; }
-  .vt-step:nth-child(1) { background: var(--c-green); }
-  .vt-step:nth-child(2) { background: var(--c-clay); }
-  .vt-step:nth-child(3) { background: var(--c-butter); }
+  .vt-step { padding: 28px 26px 30px; }
+  .vt-step:nth-child(1) { background: var(--c-green); border-radius: 40px 40px 40px 10px; }
+  .vt-step:nth-child(2) { background: var(--c-clay); border-radius: 40px 10px 40px 40px; }
+  .vt-step:nth-child(3) { background: var(--c-butter); border-radius: 10px 40px 40px 40px; }
   .vt-step .vt-num {
     display: inline-flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border-radius: 50%; background: var(--card);
@@ -193,24 +208,33 @@ const CSS = `
   /* features: alternating soft colour blocks */
   .vt-features { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .vt-feature {
-    border-radius: 22px; padding: 32px 32px 34px;
+    padding: 32px 32px 34px;
     transition: transform 160ms ease;
   }
-  .vt-feature:nth-child(1) { background: var(--c-sky); }
-  .vt-feature:nth-child(2) { background: var(--c-clay); }
-  .vt-feature:nth-child(3) { background: var(--c-butter); }
-  .vt-feature:nth-child(4) { background: var(--c-green); }
-  .vt-feature:hover { transform: translateY(-3px); }
+  .vt-feature:nth-child(1) { background: var(--c-sky); border-radius: 44px 44px 12px 44px; }
+  .vt-feature:nth-child(2) { background: var(--c-clay); border-radius: 44px 44px 44px 12px; }
+  .vt-feature:nth-child(3) { background: var(--c-butter); border-radius: 12px 44px 44px 44px; }
+  .vt-feature:nth-child(4) { background: var(--c-green); border-radius: 44px 12px 44px 44px; }
+  .vt-feature:hover { transform: translateY(-3px) rotate(-0.6deg); }
   .vt-feature h3 { font-family: var(--display); font-size: 20px; font-weight: 600; margin: 0 0 9px; letter-spacing: -0.01em; }
   .vt-feature p { font-size: 14.5px; color: var(--ink); opacity: 0.66; margin: 0; max-width: 46ch; line-height: 1.55; }
 
   /* ------- CTA panel ------- */
   .vt-cta-panel {
-    background: var(--green); color: #fff; border-radius: 28px;
+    background: var(--green); color: #fff;
+    border-radius: 64px 20px 64px 64px;
     padding: clamp(48px, 7vw, 92px) clamp(28px, 5vw, 80px);
     display: flex; flex-direction: column; align-items: flex-start; gap: 28px;
-    margin: 108px 0 0;
+    margin: 108px 0 0; position: relative; overflow: hidden;
   }
+  /* a playful blob peeking in the corner of the CTA */
+  .vt-cta-panel::after {
+    content: ''; position: absolute; z-index: 0; pointer-events: none;
+    width: 260px; height: 260px; right: -70px; bottom: -90px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 54% 46% 47% 53% / 46% 54% 46% 54%;
+  }
+  .vt-cta-panel > * { position: relative; z-index: 1; }
   .vt-cta-panel h2 {
     font-family: var(--display); font-weight: 600; font-size: clamp(30px, 3.8vw, 46px);
     letter-spacing: -0.025em; line-height: 1.08; margin: 0; max-width: 22ch;
