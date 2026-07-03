@@ -54,6 +54,12 @@ const CSS = `
     --green: ${color.brand};
     --green-deep: ${color.brandDeep};
     --sand: #f6efe3;       /* warm soft accent (badges, hovers) */
+    /* Colour-block palette — soft, warm, clearly-hued (not greige). Gives the
+       sections rhythm and life, Qasa-style. */
+    --c-green: #e6f0e9;    --c-green-ink: #0e3d2a;
+    --c-clay: #f6e7db;     --c-clay-ink: #b05f3b;
+    --c-butter: #f3ecd3;   --c-butter-ink: #927618;
+    --c-sky: #e6eef1;      --c-sky-ink: #3f6b7d;
     --display: "Bricolage Grotesque", "Schibsted Grotesk", -apple-system, sans-serif;
     --sans: ${font.sans};
     font-family: var(--sans);
@@ -158,37 +164,45 @@ const CSS = `
     font-size: 13px; color: var(--green); font-weight: 500; margin: 0 0 34px;
   }
   .vt-section { padding: 92px 0 0; }
+  /* statement as a big warm colour-block shape */
   .vt-statement {
-    text-align: center; padding: 120px 0;
+    text-align: center; padding: clamp(72px, 10vw, 116px) 32px;
+    background: var(--c-butter); border-radius: 32px; margin: 96px 0 0;
     font-family: var(--display); font-weight: 600; font-size: clamp(32px, 4.2vw, 52px);
-    letter-spacing: -0.025em; line-height: 1.08; margin: 0;
+    letter-spacing: -0.025em; line-height: 1.08;
   }
-  .vt-statement span { color: var(--gray); }
+  .vt-statement span { color: var(--c-butter-ink); opacity: 0.72; }
 
-  /* how-it-works: soft rounded cards */
+  /* how-it-works: a row of soft colour blocks */
   .vt-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .vt-step {
-    background: var(--card); border: 1px solid var(--hairline);
-    border-radius: 20px; padding: 26px 24px 28px;
-  }
+  .vt-step { border-radius: 22px; padding: 28px 26px 30px; }
+  .vt-step:nth-child(1) { background: var(--c-green); }
+  .vt-step:nth-child(2) { background: var(--c-clay); }
+  .vt-step:nth-child(3) { background: var(--c-butter); }
   .vt-step .vt-num {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border-radius: 50%; background: var(--tint);
-    color: var(--green); font-size: 13px; font-weight: 600; margin-bottom: 22px;
+    width: 32px; height: 32px; border-radius: 50%; background: var(--card);
+    font-size: 13px; font-weight: 600; margin-bottom: 22px;
   }
+  .vt-step:nth-child(1) .vt-num { color: var(--c-green-ink); }
+  .vt-step:nth-child(2) .vt-num { color: var(--c-clay-ink); }
+  .vt-step:nth-child(3) .vt-num { color: var(--c-butter-ink); }
   .vt-step h3 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
-  .vt-step p { font-size: 14.5px; color: var(--gray); margin: 0; line-height: 1.55; }
+  .vt-step p { font-size: 14.5px; color: var(--ink); opacity: 0.66; margin: 0; line-height: 1.55; }
 
-  /* features: soft rounded cards */
+  /* features: alternating soft colour blocks */
   .vt-features { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .vt-feature {
-    background: var(--card); border: 1px solid var(--hairline);
-    border-radius: 20px; padding: 30px 30px 32px;
-    transition: transform 160ms ease, box-shadow 160ms ease;
+    border-radius: 22px; padding: 32px 32px 34px;
+    transition: transform 160ms ease;
   }
-  .vt-feature:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -28px rgba(32,29,23,0.4); }
-  .vt-feature h3 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 0 0 9px; letter-spacing: -0.01em; }
-  .vt-feature p { font-size: 14.5px; color: var(--gray); margin: 0; max-width: 46ch; line-height: 1.55; }
+  .vt-feature:nth-child(1) { background: var(--c-sky); }
+  .vt-feature:nth-child(2) { background: var(--c-clay); }
+  .vt-feature:nth-child(3) { background: var(--c-butter); }
+  .vt-feature:nth-child(4) { background: var(--c-green); }
+  .vt-feature:hover { transform: translateY(-3px); }
+  .vt-feature h3 { font-family: var(--display); font-size: 20px; font-weight: 600; margin: 0 0 9px; letter-spacing: -0.01em; }
+  .vt-feature p { font-size: 14.5px; color: var(--ink); opacity: 0.66; margin: 0; max-width: 46ch; line-height: 1.55; }
 
   /* ------- CTA panel ------- */
   .vt-cta-panel {
