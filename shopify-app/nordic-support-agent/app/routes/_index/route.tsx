@@ -54,12 +54,12 @@ const CSS = `
     --green: ${color.brand};
     --green-deep: ${color.brandDeep};
     --sand: #f6efe3;       /* warm soft accent (badges, hovers) */
-    /* Colour-block palette — soft, warm, clearly-hued (not greige). Gives the
-       sections rhythm and life, Qasa-style. */
-    --c-green: #e6f0e9;    --c-green-ink: #0e3d2a;
-    --c-clay: #f6e7db;     --c-clay-ink: #b05f3b;
-    --c-butter: #f3ecd3;   --c-butter-ink: #927618;
-    --c-sky: #e6eef1;      --c-sky-ink: #3f6b7d;
+    /* Colour-block palette — a spread of greens (tonal, all on-brand). Gives
+       the sections rhythm and life while staying in one green colour way. */
+    --c-green: #e4f1e8;    --c-green-ink: #0e3d2a;   /* light sage    */
+    --c-clay: #d3e7d8;     --c-clay-ink: #2f7d5a;    /* mint          */
+    --c-butter: #eef4e2;   --c-butter-ink: #5f7d3a;  /* light lime    */
+    --c-sky: #c6ded0;      --c-sky-ink: #276049;     /* deep sage     */
     --display: "Bricolage Grotesque", "Schibsted Grotesk", -apple-system, sans-serif;
     --sans: ${font.sans};
     font-family: var(--sans);
