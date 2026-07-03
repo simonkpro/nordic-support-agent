@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import type { LoaderFunctionArgs, MetaFunction, LinksFunction } from 'react-router';
-import { redirect, Link } from 'react-router';
+import { redirect, Link, useLoaderData } from 'react-router';
 import { color, font } from '../../components/ui/theme';
 
 /**
@@ -15,7 +16,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (url.searchParams.get('shop')) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
-  return null;
+  // Dogfood: the lander runs the real Vitrio widget (not a mockup), pointed at
+  // our own published assistant. Set VITRIO_LANDER_ASSISTANT_ID to switch it on.
+  return { widgetAssistantId: process.env.VITRIO_LANDER_ASSISTANT_ID ?? null };
 };
 
 export const meta: MetaFunction = () => [
@@ -299,6 +302,22 @@ function Pill({
 }
 
 export default function Landing() {
+  const { widgetAssistantId } = useLoaderData<typeof loader>();
+
+  // Run the real Vitrio widget on the lander so visitors can try the actual
+  // product. Same script a customer embeds; loaded client-side.
+  useEffect(() => {
+    if (!widgetAssistantId) return;
+    const s = document.createElement('script');
+    s.src = '/widget.js';
+    s.setAttribute('data-assistant', widgetAssistantId);
+    s.async = true;
+    document.body.appendChild(s);
+    return () => {
+      s.remove();
+    };
+  }, [widgetAssistantId]);
+
   return (
     <div className="vt-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
